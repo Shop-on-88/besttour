@@ -428,6 +428,17 @@ body{background:#fff}
 .bnlead{text-align:center;margin:16px 0 0;font-size:14.5px;color:var(--ink2)}
 @media (max-width:900px){.bns{height:360px}.bn h1{font-size:36px}}
 @media (max-width:560px){.bns{height:330px}.bn .wrap{padding-bottom:60px;justify-content:flex-end}.bn:after{background:linear-gradient(0deg,rgba(15,23,42,.72) 0%,rgba(15,23,42,.25) 55%,rgba(15,23,42,0) 80%)}.bn h1{font-size:29px}.bn p{font-size:14.5px;margin:9px 0 14px}.bn .bk{margin-bottom:10px;font-size:12px}.bnb{padding:9px 16px;font-size:13.5px}.bnc{bottom:auto;top:12px;right:12px}.mainbn .sbox{margin-top:-34px}.mainbn{padding-bottom:20px}.bnlead{font-size:13px}}
+.hotelc .art{aspect-ratio:16/10}
+.hotelc .art img{object-position:center}
+.hotelc .foot{flex-wrap:wrap}
+.hotelc .earn{white-space:nowrap}
+@media (max-width:700px){
+  #hotels .grid{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none;margin-right:-16px;padding-right:16px}
+  #hotels .grid::-webkit-scrollbar{display:none}
+  #hotels .hotelc{flex:0 0 80%;scroll-snap-align:start}
+  .hotelc .art{aspect-ratio:16/9}
+  .hotelc h3{font-size:16.5px}
+}
 </style>
 </head>
 <body>
@@ -698,7 +709,7 @@ function home(){
     '<div><span class="k">'+(RULE.rate*100)+'%</span><h3>예약할 때마다 적립</h3><p>포인트를 뺀 실제 결제 금액의 '+(RULE.rate*100)+'%가 예약 확정과 함께 적립됩니다.</p></div>'+
     '<div><span class="k">1P = 1원</span><h3>다음 여행에서 사용</h3><p>'+won(RULE.minUse)+'P부터 결제 금액의 '+(RULE.maxRatio*100)+'%까지 현금처럼 씁니다.</p></div></div></section>'+
    '<section class="blk" id="hotels"><div class="sh"><div><span class="eyebrow">WORLDWIDE 5★ HOTELS</span><h2>전 세계 5성급 호텔</h2><p>인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.</p></div></div>'+
-    '<div class="grid g4">'+[["vn","다낭·나트랑",""],["th","방콕·푸껫","1639647564912-651e29b8e6ad"],["id","발리","1717850702166-4804294d4d4e"],["jp","오사카·도쿄","1650355265079-9dad4fa101e6"],["ph","세부·보라카이","1637851522639-2d54fec9125e"],["ch","인터라켄·루체른",""],["vn","하노이·하롱",""],["kr","제주·서울",""]].map(function(h){return '<button class="hotelc" data-act="country" data-c="'+h[0]+'"><div class="art">'+(h[2]?'<img src="ph/'+h[2]+'.jpg" alt="" loading="lazy">':'<div class="noph"><b>'+h[1]+'</b><i>호텔 사진 준비중</i></div>')+'<span class="star">★ 5성급 이상</span></div><div class="body"><h3>'+h[1]+' 럭셔리 호텔</h3><div class="foot"><span class="price">최저가 <i>준비중</i></span><span class="earn">여행정보 보기</span></div></div></button>'}).join("")+'</div>'+
+    '<div class="grid g4">'+[["vn","다낭·나트랑",""],["th","방콕·푸껫","1639647564912-651e29b8e6ad"],["id","발리","1717850702166-4804294d4d4e"],["jp","오사카·도쿄","1650355265079-9dad4fa101e6"],["ph","세부·보라카이","1637851522639-2d54fec9125e"],["ch","인터라켄·루체른","1706390047754-d46bf2f53f53"],["vn","하노이·하롱",""],["kr","제주·서울",""]].map(function(h){return '<button class="hotelc" data-act="country" data-c="'+h[0]+'"><div class="art">'+(h[2]?'<img src="ph/'+h[2]+'.jpg" alt="" loading="lazy">':'<div class="noph"><b>'+h[1]+'</b><i>호텔 사진 준비중</i></div>')+'<span class="star">★ 5성급 이상</span></div><div class="body"><h3>'+h[1]+' 럭셔리 호텔</h3><div class="foot"><span class="price">최저가 <i>준비중</i></span><span class="earn">여행정보 보기</span></div></div></button>'}).join("")+'</div>'+
     '<p class="note" style="margin:14px 0 0;text-align:center">호텔 공급사(RateHawk·TBO 등) 연동 시 날짜별 실시간 최저가가 자동으로 표시됩니다.</p></section>'+
    '<section class="blk" id="ctry"><div class="sh"><div><h2>나라별 여행 정보</h2><p>관광 명소부터 안전정보까지 한눈에 확인하세요.</p></div></div>'+
     '<div class="ctrygrid">'+[["vn"],["jp"],["th"],["ph"],["id"],["ch"],["kr"]].map(function(c){var C=COUNTRY[c[0]];return '<button class="ctryc" data-act="country" data-c="'+c[0]+'"><span class="fl">'+C.flag+'</span><b>'+C.name.replace(/\(.*\)/,"")+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>'+
