@@ -6,6 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2463EB">
 <meta name="robots" content="noindex,nofollow">
+<base href="/">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="베스트여행사">
@@ -1014,7 +1015,7 @@ document.addEventListener("submit",function(e){var f=e.target.closest("[data-for
 document.addEventListener("input",function(e){if(e.target.closest('[data-form="booking"]'))bookingSum()});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()});
 window.addEventListener("hashchange",route);
-function route(){var h=(location.hash||"").replace("#","");U.view=["home","mypage","admin"].indexOf(h)>-1?h:"home";render()}
+function route(){var h=(location.hash||"").replace("#","");if(!h&&/\/admin\/?$/.test(location.pathname)){h="admin";U.tab="dash"}U.view=["home","mypage","admin"].indexOf(h)>-1?h:"home";render()}
 function render(){
   gid=0;
   document.getElementById("app").innerHTML=header()+'<main>'+({home:home,mypage:mypage,admin:admin}[U.view]||home)()+'</main>'+footer();
