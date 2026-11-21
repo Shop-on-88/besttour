@@ -369,7 +369,11 @@ def a_review(me, d, ctx):
     text = re.sub(r"\s+", " ", (d.get("text") or "")).strip()
     rating = to_int(d.get("rating") or 5)
     pid = d.get("productId") or None
-    if pid and not product(pid): pid = None
+    bought = {b["productId"] for b in S["bookings"] if b["memberId"] == me["id"] and b["status"] == "confirmed"}
+    if not bought: raise Err("예약이 확정된 상품이 있어야 후기를 쓸 수 있습니다.")
+    if not pid or pid not in bought or not product(pid): raise Err("후기를 쓸 상품을 골라 주세요. 예약이 확정된 상품만 후기를 쓸 수 있습니다.")
+    if any(r["memberId"] == me["id"] and r.get("productId") == pid and r["status"] != "rejected" for r in S["reviews"]):
+        raise Err("이 상품은 이미 후기를 쓰셨습니다.")
     if not 1 <= rating <= 5: raise Err("별점을 골라 주세요.")
     LM = S["limits"]
     if len(text) < LM["minLen"]: raise Err("후기는 %d자 이상 써 주세요." % LM["minLen"])
