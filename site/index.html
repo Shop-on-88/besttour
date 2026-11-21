@@ -585,8 +585,8 @@ function countryOf(id){return countryList().find(function(c){return c.id===id})}
 function quickList(){if(S.quick)return S.quick;return [
  {label:"앱 설치",icon:"",img:"",to:"install",hl:true},{label:"베스트 Pick",icon:"★",img:"",to:"sec:hot"},{label:"BEST 특가",icon:"",img:"ph/"+PH.p1+".jpg",to:"sec:hot"},
  {label:"신규 상품",icon:"NEW",img:"",to:"sec:list"},{label:"특별 예약",icon:"",img:"ph/"+PH.p5+".jpg",to:"sec:list"},{label:"테마 여행",icon:"",img:"ph/"+PH.p7+".jpg",to:"sec:list"},
- {label:"포인트 혜택",icon:"P",img:"",to:"sec:perks"},{label:"카카오톡 상담",icon:"♥",img:"",to:"kakao"}]}
-var QTO=[["sec:hot","인기 여행지로 이동"],["sec:list","전체 상품으로 이동"],["sec:perks","포인트 혜택으로 이동"],["sec:hotels","호텔로 이동"],["sec:ctry","나라별 정보로 이동"],["sec:reviews","고객 후기로 이동"],["mypage","마이페이지"],["install","앱 설치"],["kakao","카카오톡 상담"]];
+ {label:"내 포인트",icon:"P",img:"",to:"mypage"},{label:"카카오톡 상담",icon:"♥",img:"",to:"kakao"}]}
+var QTO=[["sec:hot","인기 여행지로 이동"],["sec:list","전체 상품으로 이동"],["sec:hotels","호텔로 이동"],["sec:ctry","나라별 정보로 이동"],["sec:reviews","고객 후기로 이동"],["mypage","마이페이지"],["install","앱 설치"],["kakao","카카오톡 상담"]];
 function HM(){var h=S.home||{};h.show=h.show||{};return h}
 function shw(k){var s=HM().show;return s[k]!==false}
 function ht(k,d){var v=HM()[k];return v==null||v===""?d:v}
@@ -772,9 +772,7 @@ function home(){
    (shw("featured")&&f?'<section class="feat"><div class="wrap"><div class="sh light"><div><span class="eyebrow">RECOMMEND · 추천 여행지</span><h2>'+esc(ht("featuredTitle","추천 여행"))+'</h2></div></div>'+
      '<button class="bigcard" data-act="book" data-id="'+f.id+'"><div class="bg">'+img(f)+'</div><div class="over"><span class="n">추천</span><h3>'+esc(f.name)+'</h3><p>'+esc(f.desc)+'</p>'+
      '<div class="brow">'+(f.price>0?'<b class="num">'+won(f.price)+'<i>원 / 1인</i></b><span class="ern">+'+won(pEarn(f,f.price,1))+'P 적립</span>':'<b>가격 준비중</b><span class="ern">상담 문의</span>')+'</div></div></button></div></section>':'')+
-   '<div class="wrap">'+(shw("perks")?'<section class="blk" id="perks"><div class="perks"><div><span class="k">'+won(RULE.signup)+'P</span><h3>가입 즉시 지급</h3><p>회원가입을 마치면 바로 쓸 수 있는 축하 포인트가 들어옵니다.</p></div>'+
-    '<div><span class="k">'+Math.round(RULE.rate*100)+'%</span><h3>예약할 때마다 적립</h3><p>포인트를 뺀 실제 결제 금액의 '+Math.round(RULE.rate*100)+'%가 예약 확정과 함께 적립됩니다.</p></div>'+
-    '<div><span class="k">1P = 1원</span><h3>다음 여행에서 사용</h3><p>'+won(RULE.minUse)+'P부터 결제 금액의 '+Math.round(RULE.maxRatio*100)+'%까지 현금처럼 씁니다.</p></div></div></section>':'')+
+   '<div class="wrap">'+
    (shw("hotels")?'<section class="blk" id="hotels"><div class="sh"><div><span class="eyebrow">WORLDWIDE 5★ HOTELS</span><h2>'+esc(ht("hotelsTitle","전 세계 5성급 호텔"))+'</h2><p>'+esc(ht("hotelsSub",""))+'</p></div></div>'+
     '<div class="grid g4">'+hotelList().map(function(h){return '<button class="hotelc" data-act="'+(h.country&&countryOf(h.country)?'country':'exfab')+'" data-c="'+esc(h.country||"")+'"><div class="art">'+(h.img?'<img src="'+esc(h.img)+'" alt="" loading="lazy">':'<div class="noph"><b>'+esc(h.area||h.title)+'</b><i>호텔 사진 준비중</i></div>')+(h.star?'<span class="star">'+esc(h.star)+'</span>':'')+'</div><div class="body"><h3>'+esc(h.title)+'</h3><div class="foot"><span class="price">'+esc(h.price||"")+'</span><span class="earn">'+esc(h.more||(h.country?"여행정보 보기":"상담 문의"))+'</span></div></div></button>'}).join("")+'</div>'+
     (ht("hotelsNote","")?'<p class="note" style="margin:14px 0 0;text-align:center">'+esc(ht("hotelsNote",""))+'</p>':'')+'</section>':'')+
@@ -912,7 +910,7 @@ function admBanners(){
 function admHome(){
   var H=HM(),S2=H.show||{},sel=H.popularIds||[];
   var t=function(k,label,full){return '<label class="field'+(full?' full':'')+'" for="hm-'+k+'"><span>'+label+'</span><input class="inp" id="hm-'+k+'" name="'+k+'" value="'+esc(H[k]||"")+'"></label>'};
-  var sw=[["quick","빠른 메뉴 줄"],["popular","인기 여행지"],["featured","추천 여행 (큰 카드)"],["perks","포인트 혜택 안내"],["hotels","5성급 호텔"],["countries","나라별 여행 정보"],["list","전체 여행 상품"],["reviews","고객 후기"]];
+  var sw=[["quick","빠른 메뉴 줄"],["popular","인기 여행지"],["featured","추천 여행 (큰 카드)"],["hotels","5성급 호텔"],["countries","나라별 여행 정보"],["list","전체 여행 상품"],["reviews","고객 후기"]];
   return '<form data-form="homeset" class="stack">'+
    '<div class="panel"><h3>로고 · 맨 위 안내줄</h3><div class="fgrid">'+t("logo","로고 글자")+t("logoSub","로고 옆 작은 글자 (비우면 숨김)")+t("notice","맨 위 노란 안내줄 문구 (비우면 숨김)",true)+'</div></div>'+
    '<div class="panel"><h3>보여줄 영역</h3><p class="note" style="margin:-6px 0 10px">체크를 끄면 홈 화면에서 그 영역이 사라집니다. 메인 배너는 "메인 배너" 탭에서 관리합니다.</p><div class="ckrow">'+sw.map(function(s){return '<label class="ck"><input type="checkbox" name="show_'+s[0]+'"'+(S2[s[0]]!==false?' checked':'')+'> '+s[1]+'</label>'}).join("")+'</div></div>'+
@@ -987,7 +985,7 @@ function openModal(kind,id){
   if(kind==="explore")return modal('<h2>둘러보기</h2><p class="sub">원하는 곳으로 바로 이동하세요.</p><div class="exlist">'+
     '<button data-act="exgo" data-v="home" data-to="hot">회원 전용 포인트 특가 <span>→</span></button>'+
     '<button data-act="exgo" data-v="home" data-to="list">전체 여행 상품 <span>→</span></button>'+
-    '<button data-act="exgo" data-v="home" data-to="perks">포인트 혜택 안내 <span>→</span></button>'+
+    '<button data-act="exgo" data-v="home" data-to="list">전체 여행 상품 <span>→</span></button>'+
     '<button data-act="exgo" data-v="mypage">마이페이지 · 내 포인트 <span>→</span></button>'+
     (me()?'':'<button data-act="exopen" data-m="signup">회원가입 <i>가입 시 '+won(RULE.signup)+'P</i> <span>→</span></button>')+
     '<button data-act="exfab">카카오톡 상담 <span>→</span></button>'+
@@ -1142,7 +1140,7 @@ var forms={
   },
   homeset:function(f){
     var d={show:{}};["logo","logoSub","notice","hotelsNote","popularTitle","popularSub","featuredTitle","hotelsTitle","hotelsSub","countriesTitle","countriesSub","listTitle","reviewsTitle","reviewsSub"].forEach(function(k){d[k]=f[k].value});
-    ["quick","popular","featured","perks","hotels","countries","list","reviews"].forEach(function(k){d.show[k]=f["show_"+k].checked});
+    ["quick","popular","featured","hotels","countries","list","reviews"].forEach(function(k){d.show[k]=f["show_"+k].checked});
     d.popularIds=[].slice.call(f.querySelectorAll('input[name="pop"]:checked')).map(function(x){return x.value});d.featuredId=f.featuredId.value;
     api("home-save",d).then(function(r){done(r,"hm-err",render)});
   },
@@ -1168,7 +1166,7 @@ var forms={
 var acts={
   go:function(d){go(d.v)},
   quick:function(d){U.view="home";render();scrollToId(d.to)},
-  qgo:function(d){var q=quickList()[+d.i];if(!q)return;var t=q.to||"";if(t.indexOf("sec:")===0){U.view="home";render();scrollToId(t.slice(4))}else if(t.indexOf("cat:")===0){U.cat=t.slice(4);U.view="home";render();scrollToId("list")}else if(t.indexOf("product:")===0){acts.book({id:t.slice(8)})}else if(t==="install")acts.install();else if(t==="kakao")kakao();else if(t==="mypage")go("mypage")},
+  qgo:function(d){var q=quickList()[+d.i];if(!q)return;var t=q.to||"";if(t==="sec:perks"){go("mypage")}else if(t.indexOf("sec:")===0){U.view="home";render();scrollToId(t.slice(4))}else if(t.indexOf("cat:")===0){U.cat=t.slice(4);U.view="home";render();scrollToId("list")}else if(t.indexOf("product:")===0){acts.book({id:t.slice(8)})}else if(t==="install")acts.install();else if(t==="kakao")kakao();else if(t==="mypage")go("mypage")},
   stab:function(d){U.stab=d.t;render();scrollToId("search")},
   ftrip:function(d){U.ftrip=d.t;render();scrollToId("search")},
   country:function(d){U.ccur=d.c;U.ctab="tour";openModal("country",d.c)},
