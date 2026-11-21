@@ -460,10 +460,12 @@ textarea.inp{resize:vertical;min-height:96px;font:inherit}
 .bnlist{display:grid;gap:10px}.bnrow{display:flex;gap:14px;align-items:center;border:1px solid #E5E7EB;border-radius:10px;padding:10px;flex-wrap:wrap}
 .bnrow.off{opacity:.55}.bnimg{width:180px;height:76px;border-radius:8px;overflow:hidden;flex:none;background:#EEF1F6}.bnimg img{width:100%;height:100%;object-fit:cover}
 .bninfo{flex:1;min-width:180px}.bninfo b{display:block;margin:4px 0 2px}
+.ckrow.pick{max-height:220px;overflow:auto;border:1px solid #E5E7EB;border-radius:8px;padding:10px}
+.ckrow.pick .ck{width:calc(33% - 12px);min-width:160px;font-size:13px}
 </style>
 </head>
 <body>
-<div id="kkbar"><span class="kico">talk</span>카카오톡 채널 추가하고 여행 혜택 알림 받기<button class="x" aria-label="닫기" onclick="this.parentNode.classList.add('hide')">×</button></div>
+<div id="kkbar"><span class="kico">talk</span><span class="kt" data-act="exfab" style="cursor:pointer">카카오톡 채널 추가하고 여행 혜택 알림 받기</span><button class="x" aria-label="닫기" onclick="this.parentNode.classList.add('hide')">×</button></div>
 <div id="app"></div>
 <div id="layer"></div>
 <div id="fab"><button class="kk" data-fab="kakao" aria-label="카카오톡 상담"><b>💬</b>상담</button><button class="up" data-fab="top" aria-label="맨 위로">↑</button></div>
@@ -542,10 +544,14 @@ function seed(){
 var S={products:seed().products,publicReviews:[],meId:null,members:[],bookings:[],ledger:[],audit:[],reviews:[],banners:[],categories:[],site:{company:"베스트여행사"}};
 try{localStorage.removeItem(KEY)}catch(e){}
 function save(){}
-function applyState(st){if(st){S=st;if(st.rule)RULE=st.rule;syncCats()}}
+function applyState(st){if(st){S=st;if(st.rule)RULE=st.rule;syncCats();chrome()}}
+function chrome(){try{var k=document.getElementById("kkbar"),n=ht("notice","");if(k){var sp=k.querySelector(".kt");if(sp)sp.textContent=n;k.style.display=HM().notice===""?"none":""}document.title=site().company||"베스트여행사"}catch(e){}}
 function syncCats(){if(!S.categories||!S.categories.length)return;CATS=["전체"].concat(S.categories.map(function(c){return c.name}));CSHORT={};S.categories.forEach(function(c){CSHORT[c.name]=c.short||c.name});if(CATS.indexOf(U.cat)<0)U.cat="전체"}
 function activeBanners(){return (S.banners||[]).filter(function(b){return b.active})}
 function kakao(){var u=site().kakao;if(u){window.open(u,"_blank","noopener")}else toast(site().phone?"상담 전화: "+site().phone:"카카오톡 상담 채널을 준비 중입니다")}
+function HM(){var h=S.home||{};h.show=h.show||{};return h}
+function shw(k){var s=HM().show;return s[k]!==false}
+function ht(k,d){var v=HM()[k];return v==null||v===""?d:v}
 function site(){return S.site||{company:"베스트여행사"}}
 var BUSY=false;
 function api(name,data){if(BUSY)return Promise.resolve({ok:false,err:"처리 중입니다. 잠시만 기다려 주세요."});BUSY=true;return fetch("/api/"+name,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(data||{})}).then(function(r){return r.json()}).catch(function(){return {ok:false,err:"서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."}}).then(function(res){BUSY=false;if(res&&res.state)applyState(res.state);return res||{ok:false,err:"오류가 발생했습니다."}})}
@@ -628,7 +634,7 @@ function header(){
   var navs=[["home","홈"],["mypage","마이페이지"]];
   if(m&&m.role==="admin")navs.push(["admin","관리자"]);
   return '<header class="top"><div class="wrap">'+
-   '<button class="logo" data-act="go" data-v="home" aria-label="베스트여행사 홈"><b>베스트여행사</b><i>BEST TOUR</i></button>'+
+   '<button class="logo" data-act="go" data-v="home" aria-label="홈"><b>'+esc(ht("logo","베스트여행사"))+'</b>'+(HM().logoSub===""?'':'<i>'+esc(ht("logoSub","BEST TOUR"))+'</i>')+'</button>'+
    '<nav class="nav" aria-label="주 메뉴">'+navs.map(function(n){return '<button data-act="go" data-v="'+n[0]+'"'+(U.view===n[0]?' aria-current="page"':'')+'>'+n[1]+'</button>'}).join("")+'</nav><button class="nav-explore" data-act="open" data-m="explore">둘러보기 <b>▾</b></button><span class="sp"></span>'+
    (m?'<button class="pbadge" data-act="go" data-v="mypage" aria-label="내 포인트"><small class="hide-m">내 포인트</small><span class="num">'+won(balance(m.id))+'P</span></button><span class="hide-m">'+esc(m.name)+' 님</span><button class="btn sm ghost" data-act="logout">로그아웃</button>'
      :'<button class="btn sm ghost" data-act="open" data-m="login">로그인</button><button class="btn sm pri" data-act="open" data-m="signup">회원가입</button>')+
@@ -710,11 +716,11 @@ function searchForm(){
 function home(){
   var m=me();
   var act=S.products.filter(function(p){return p.active});
-  var hot=act.filter(function(p){return p.img||PIMG[p.id]}).slice(0,4);
-  var f=hot[0]||S.products[0];
+  var pids=HM().popularIds||[],hot=pids.length?pids.map(product).filter(function(p){return p&&p.active}):act.filter(function(p){return p.img||PIMG[p.id]}).slice(0,4);
+  var f=(HM().featuredId&&product(HM().featuredId))||hot[0]||S.products[0];
   var cats=(S.categories&&S.categories.length?S.categories:CATS.slice(1).map(function(n){return {name:n,short:CSHORT[n]||n}}));
   var list=S.products.filter(function(p){return (U.cat==="전체"||(p.cats||[p.cat]).indexOf(U.cat)>-1)&&(!U.q||(p.name+p.desc+(p.cats||[p.cat]).join(" ")).toLowerCase().indexOf(U.q.toLowerCase())>-1)});
-  return '<div class="qbar"><div class="wrap"><div class="qrow">'+
+  return (shw("quick")?'<div class="qbar"><div class="wrap"><div class="qrow">'+
    '<button class="qchip qinst" data-act="install">앱 설치</button>'+
    '<button class="qchip" data-act="quick" data-to="hot"><u class="ic b2">★</u>베스트 Pick</button>'+
    '<button class="qchip" data-act="quick" data-to="hot"><u><img src="ph/'+PH.p1+'.jpg" alt="" loading="lazy"></u>BEST 특가</button>'+
@@ -723,30 +729,30 @@ function home(){
    '<button class="qchip" data-act="quick" data-to="list"><u><img src="ph/'+PH.p7+'.jpg" alt="" loading="lazy"></u>테마 여행</button>'+
    '<button class="qchip" data-act="quick" data-to="perks"><u class="ic b1">P</u>포인트 혜택</button>'+
    '<button class="qchip" data-act="wish"><u class="ic b3">♥</u>찜 목록</button>'+
-   '</div></div></div>'+
+   '</div></div></div>':'')+
    '<section class="mainbn" id="search"><div class="bns">'+(function(){var L=activeBanners();if(BNI>=L.length)BNI=0;return L.map(function(x,i){var btn=x.linkType==="cat"?'<button class="bnb" data-act="cat" data-c="'+esc(x.link)+'">'+esc(x.button||"상품 보기")+'</button>':x.linkType==="product"?'<button class="bnb" data-act="book" data-id="'+esc(x.link)+'">'+esc(x.button||"상품 보기")+'</button>':'';return '<div class="bn'+(i===BNI?' on':'')+'" data-i="'+i+'"><img src="'+esc(x.img)+'" alt=""'+(i?' loading="lazy"':'')+'><div class="wrap">'+(x.badge?'<span class="bk">'+esc(x.badge)+'</span>':'')+'<h1>'+esc(x.title1)+'<em>'+esc(x.title2)+'</em></h1>'+(x.sub?'<p>'+esc(x.sub)+'</p>':'')+btn+'</div></div>'}).join("")+(L.length>1?'<div class="bnc"><button data-act="bnprev" aria-label="이전">‹</button><span id="bnn">'+(BNI+1)+' / '+L.length+'</span><button data-act="bnnext" aria-label="다음">›</button></div>':'')})()+'</div>'+
    '<div class="wrap">'+
    '<div class="sbox"><div class="tabs2">'+
      [["pkg","패키지"],["hotel","호텔"],["air","항공"]].map(function(t){return '<span data-act="stab" data-t="'+t[0]+'"'+(U.stab===t[0]?' class="on"':'')+'>'+t[1]+'</span>'}).join("")+'</div>'+
      searchForm()+'</div><p class="lead bnlead">'+(m?esc(m.name)+'님, 예약할 때마다 결제 금액의 '+(RULE.rate*100)+'%가 포인트로 쌓입니다':'가입 즉시 '+won(RULE.signup)+'P, 예약할 때마다 결제 금액의 '+(RULE.rate*100)+'%가 쌓입니다')+'</p></div></section>'+
    '<div class="wrap"><div class="cats c5" style="grid-template-columns:repeat('+Math.max(1,cats.length)+',1fr)">'+cats.map(function(c){return '<button class="catb" data-act="cat" data-c="'+esc(c.name)+'">'+esc(c.short||c.name)+'</button>'}).join("")+'</div>'+
-   '<section class="blk" id="hot"><div class="sh"><div><h2>인기 여행지</h2><p>많이 찾는 지역부터 둘러보세요. 가격은 상담으로 안내해 드립니다.</p></div><button class="more" data-act="scroll" data-to="list">전체 보기</button></div>'+
-    '<div class="grid g4">'+hot.map(card).join("")+'</div></section></div>'+
-   (f?'<section class="feat"><div class="wrap"><div class="sh light"><div><span class="eyebrow">RECOMMEND · 추천 여행지</span><h2>베스트여행사 추천 여행</h2></div></div>'+
+   (shw("popular")&&hot.length?'<section class="blk" id="hot"><div class="sh"><div><h2>'+esc(ht("popularTitle","인기 여행지"))+'</h2><p>'+esc(ht("popularSub",""))+'</p></div><button class="more" data-act="scroll" data-to="list">전체 보기</button></div>'+
+    '<div class="grid g4">'+hot.map(card).join("")+'</div></section>':'')+'</div>'+
+   (shw("featured")&&f?'<section class="feat"><div class="wrap"><div class="sh light"><div><span class="eyebrow">RECOMMEND · 추천 여행지</span><h2>'+esc(ht("featuredTitle","추천 여행"))+'</h2></div></div>'+
      '<button class="bigcard" data-act="book" data-id="'+f.id+'"><div class="bg">'+img(f)+'</div><div class="over"><span class="n">추천</span><h3>'+esc(f.name)+'</h3><p>'+esc(f.desc)+'</p>'+
      '<div class="brow">'+(f.price>0?'<b class="num">'+won(f.price)+'<i>원 / 1인</i></b><span class="ern">+'+won(Math.floor(f.price*RULE.rate))+'P 적립</span>':'<b>가격 준비중</b><span class="ern">상담 문의</span>')+'</div></div></button></div></section>':'')+
-   '<div class="wrap"><section class="blk" id="perks"><div class="perks"><div><span class="k">'+won(RULE.signup)+'P</span><h3>가입 즉시 지급</h3><p>회원가입을 마치면 바로 쓸 수 있는 축하 포인트가 들어옵니다.</p></div>'+
-    '<div><span class="k">'+(RULE.rate*100)+'%</span><h3>예약할 때마다 적립</h3><p>포인트를 뺀 실제 결제 금액의 '+(RULE.rate*100)+'%가 예약 확정과 함께 적립됩니다.</p></div>'+
-    '<div><span class="k">1P = 1원</span><h3>다음 여행에서 사용</h3><p>'+won(RULE.minUse)+'P부터 결제 금액의 '+(RULE.maxRatio*100)+'%까지 현금처럼 씁니다.</p></div></div></section>'+
-   '<section class="blk" id="hotels"><div class="sh"><div><span class="eyebrow">WORLDWIDE 5★ HOTELS</span><h2>전 세계 5성급 호텔</h2><p>인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.</p></div></div>'+
+   '<div class="wrap">'+(shw("perks")?'<section class="blk" id="perks"><div class="perks"><div><span class="k">'+won(RULE.signup)+'P</span><h3>가입 즉시 지급</h3><p>회원가입을 마치면 바로 쓸 수 있는 축하 포인트가 들어옵니다.</p></div>'+
+    '<div><span class="k">'+Math.round(RULE.rate*100)+'%</span><h3>예약할 때마다 적립</h3><p>포인트를 뺀 실제 결제 금액의 '+Math.round(RULE.rate*100)+'%가 예약 확정과 함께 적립됩니다.</p></div>'+
+    '<div><span class="k">1P = 1원</span><h3>다음 여행에서 사용</h3><p>'+won(RULE.minUse)+'P부터 결제 금액의 '+Math.round(RULE.maxRatio*100)+'%까지 현금처럼 씁니다.</p></div></div></section>':'')+
+   (shw("hotels")?'<section class="blk" id="hotels"><div class="sh"><div><span class="eyebrow">WORLDWIDE 5★ HOTELS</span><h2>'+esc(ht("hotelsTitle","전 세계 5성급 호텔"))+'</h2><p>'+esc(ht("hotelsSub",""))+'</p></div></div>'+
     '<div class="grid g4">'+[["vn","다낭·나트랑",""],["th","방콕·푸껫","1639647564912-651e29b8e6ad"],["id","발리","1717850702166-4804294d4d4e"],["jp","오사카·도쿄","1650355265079-9dad4fa101e6"],["ph","세부·보라카이","1637851522639-2d54fec9125e"],["ch","인터라켄·루체른","1706390047754-d46bf2f53f53"],["vn","하노이·하롱",""],["kr","제주·서울",""]].map(function(h){return '<button class="hotelc" data-act="country" data-c="'+h[0]+'"><div class="art">'+(h[2]?'<img src="ph/'+h[2]+'.jpg" alt="" loading="lazy">':'<div class="noph"><b>'+h[1]+'</b><i>호텔 사진 준비중</i></div>')+'<span class="star">★ 5성급 이상</span></div><div class="body"><h3>'+h[1]+' 럭셔리 호텔</h3><div class="foot"><span class="price">최저가 <i>준비중</i></span><span class="earn">여행정보 보기</span></div></div></button>'}).join("")+'</div>'+
-    '<p class="note" style="margin:14px 0 0;text-align:center">호텔 공급사(RateHawk·TBO 등) 연동 시 날짜별 실시간 최저가가 자동으로 표시됩니다.</p></section>'+
-   '<section class="blk" id="ctry"><div class="sh"><div><h2>나라별 여행 정보</h2><p>관광 명소부터 안전정보까지 한눈에 확인하세요.</p></div></div>'+
-    '<div class="ctrygrid">'+[["vn"],["jp"],["th"],["ph"],["id"],["ch"],["kr"]].map(function(c){var C=COUNTRY[c[0]];return '<button class="ctryc" data-act="country" data-c="'+c[0]+'"><span class="fl">'+C.flag+'</span><b>'+C.name.replace(/\(.*\)/,"")+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>'+
-      '<section class="blk" id="list"><div class="sh"><div><h2>전체 여행 상품</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
+    '<p class="note" style="margin:14px 0 0;text-align:center">호텔 공급사(RateHawk·TBO 등) 연동 시 날짜별 실시간 최저가가 자동으로 표시됩니다.</p></section>':'')+
+   (shw("countries")?'<section class="blk" id="ctry"><div class="sh"><div><h2>'+esc(ht("countriesTitle","나라별 여행 정보"))+'</h2><p>'+esc(ht("countriesSub",""))+'</p></div></div>'+
+    '<div class="ctrygrid">'+[["vn"],["jp"],["th"],["ph"],["id"],["ch"],["kr"]].map(function(c){var C=COUNTRY[c[0]];return '<button class="ctryc" data-act="country" data-c="'+c[0]+'"><span class="fl">'+C.flag+'</span><b>'+C.name.replace(/\(.*\)/,"")+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>':'')+
+      (shw("list")?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(ht("listTitle","전체 여행 상품"))+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
     '<div class="chips" role="group" aria-label="분류 필터">'+CATS.map(function(c){return '<button class="chip" data-act="cat" data-c="'+esc(c)+'" aria-pressed="'+(c===U.cat)+'">'+esc(c)+'</button>'}).join("")+'</div></div>'+
     (list.length?'<div class="grid g4">'+list.map(card).join("")+'</div>':'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
-   '</section>'+reviewSection()+'</div>';
+   '</section>':'')+(shw("reviews")?reviewSection():'')+'</div>';
 }
 
 /* ---------- 화면: 마이페이지 ---------- */
@@ -776,7 +782,7 @@ function reviewForm(m){var bk=S.bookings.filter(function(b){return b.memberId===
 function myReviews(m){var rs=S.reviews.filter(function(r){return r.memberId===m.id}).sort(function(a,b){return b.at-a.at});if(!rs.length)return "";
   return '<div class="panel"><h3>내 후기</h3><div class="scroll"><table><thead><tr><th>작성일</th><th>내용</th><th>상태</th><th class="r">포인트</th></tr></thead><tbody>'+rs.map(function(r){var st=RVST[r.status]||["-","mute"];return '<tr><td class="num">'+fmtD(r.at)+'</td><td>'+stars(r.rating)+'<div class="note">'+esc(r.text.length>60?r.text.slice(0,60)+"…":r.text)+'</div></td><td><span class="pill '+st[1]+'" style="position:static">'+st[0]+'</span></td><td class="r num">'+(r.points?"+"+won(r.points)+"P":"-")+'</td></tr>'}).join("")+'</tbody></table></div></div>'}
 function reviewSection(){var rs=S.publicReviews||[];if(!rs.length)return "";
-  return '<section class="blk" id="reviews"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>고객 여행 후기</h2><p>베스트여행사와 함께 다녀온 회원님들의 이야기입니다.</p></div></div><div class="grid g3 rvgrid">'+
+  return '<section class="blk" id="reviews"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>'+esc(ht("reviewsTitle","고객 여행 후기"))+'</h2><p>'+esc(ht("reviewsSub",""))+'</p></div></div><div class="grid g3 rvgrid">'+
    rs.slice(0,9).map(function(r){var p=r.productId&&product(r.productId);return '<div class="panel rvc">'+stars(r.rating)+'<p>'+esc(r.text)+'</p><div class="note">'+esc(r.name)+(p?' · '+esc(p.name):'')+' · '+fmtD(r.at)+'</div></div>'}).join("")+'</div></section>'}
 function mypage(){
   var m=me();
@@ -801,8 +807,8 @@ function admin(){
   var m=me();
   if(!m||m.role!=="admin")return '<div class="wrap" style="padding:70px 20px"><div class="panel" style="max-width:480px;margin:0 auto;text-align:center"><h2 style="font-size:24px;margin-bottom:8px">관리자 전용 화면</h2><p class="note" style="margin:0 0 18px">관리자 계정으로 로그인해야 들어갈 수 있습니다.</p><button class="btn pri" data-act="open" data-m="login">관리자 로그인</button></div></div>';
   var pend=S.reviews.filter(function(r){return r.status==="pending"}).length,nw=newMembers().length;
-  var tabs=[["dash","대시보드"],["members","회원·포인트"+(nw?' <i class="nbadge">N '+nw+'</i>':'')],["reviews","후기관리"+(pend?' <i class="nbadge">'+pend+'</i>':'')],["products","상품"],["cats","카테고리"],["banners","메인 배너"],["bookings","예약"],["site","사이트 정보"],["audit","관리 기록"]];
-  var body=({dash:admDash,members:admMembers,reviews:admReviews,products:admProducts,cats:admCats,banners:admBanners,bookings:admBookings,site:admSite,audit:admAudit}[U.tab]||admDash)();
+  var tabs=[["dash","대시보드"],["members","회원·포인트"+(nw?' <i class="nbadge">N '+nw+'</i>':'')],["reviews","후기관리"+(pend?' <i class="nbadge">'+pend+'</i>':'')],["products","상품"],["cats","카테고리"],["banners","메인 배너"],["bookings","예약"],["homeset","홈 화면"],["rules","포인트 규칙"],["site","사이트 정보"],["audit","관리 기록"]];
+  var body=({dash:admDash,members:admMembers,reviews:admReviews,products:admProducts,cats:admCats,banners:admBanners,bookings:admBookings,homeset:admHome,rules:admRules,site:admSite,audit:admAudit}[U.tab]||admDash)();
   return '<div class="wrap adm"><div class="sh" style="margin-bottom:0"><div><span class="eyebrow">ADMIN CONSOLE</span><h2 style="margin-top:8px">관리자 페이지</h2></div><div class="acts"><button class="btn sm" data-act="sound">'+(SOUND?'🔔 가입 알림음 켜짐':'🔕 알림음 켜기')+'</button><button class="btn sm" data-act="open" data-m="pw">비밀번호 변경</button></div></div>'+
    '<div class="tabs" role="tablist">'+tabs.map(function(t){return '<button role="tab" data-act="tab" data-t="'+t[0]+'" aria-selected="'+(U.tab===t[0])+'">'+t[1]+'</button>'}).join("")+'</div>'+body+'</div>';
 }
@@ -844,7 +850,7 @@ function admMembers(){
     '<form data-form="adjust" class="fgrid"><label class="field" for="adj-mode"><span>작업</span><select class="inp" id="adj-mode" name="mode"><option value="add">포인트 추가 (지급)</option><option value="sub">포인트 차감</option><option value="set">잔액을 이 값으로 변경</option></select></label>'+
     '<label class="field" for="adj-amt"><span>포인트</span><input class="inp num" id="adj-amt" name="amount" inputmode="numeric" placeholder="예: 5000"></label>'+
     '<label class="field full" for="adj-why"><span>사유 (회원 포인트 내역에 표시됩니다)</span><input class="inp" id="adj-why" name="reason" placeholder="예: 이벤트 당첨 포인트"></label>'+
-    '<div class="full"><p class="err" id="adj-err"></p><div class="acts" style="justify-content:space-between"><div class="acts"><button class="btn sm" type="button" data-act="toggle-status" data-id="'+sel.id+'">'+(sel.status==="active"?"회원 정지":"정지 해제")+'</button><button class="btn sm bad" type="button" data-act="open" data-m="member-del" data-id="'+sel.id+'">회원 삭제</button></div><button class="btn pri" type="submit">적용</button></div></div></form></div>'+
+    '<div class="full"><p class="err" id="adj-err"></p><div class="acts" style="justify-content:space-between"><div class="acts"><button class="btn sm" type="button" data-act="toggle-status" data-id="'+sel.id+'">'+(sel.status==="active"?"회원 정지":"정지 해제")+'</button><button class="btn sm" type="button" data-act="open" data-m="member-edit" data-id="'+sel.id+'">정보 수정</button><button class="btn sm" type="button" data-act="open" data-m="member-pw" data-id="'+sel.id+'">비밀번호 재설정</button><button class="btn sm bad" type="button" data-act="open" data-m="member-del" data-id="'+sel.id+'">회원 삭제</button></div><button class="btn pri" type="submit">적용</button></div></div></form></div>'+
     '<div class="panel"><h3>포인트 적립·사용 내역</h3>'+ledgerSumBox(sel.id)+'<div class="scroll"><table>'+ledgerHead(true)+'<tbody>'+ledgerRows(ledgerOf(sel.id),true)+'</tbody></table></div></div></div>';
   return '<div class="split">'+left+right+'</div>';
 }
@@ -871,6 +877,27 @@ function admBanners(){
    '<p class="note" style="margin:0 0 12px">홈 화면 맨 위에서 순서대로 넘어갑니다. 상품 탭의 "배너로" 버튼을 누르면 그 상품으로 바로 배너를 만들 수 있습니다. 권장 이미지: 가로 1920px 이상 가로형 사진.</p>'+
    '<div class="bnlist">'+(L.length?L.map(function(b,i){return '<div class="bnrow'+(b.active?'':' off')+'"><div class="bnimg"><img src="'+esc(b.img)+'" alt="" loading="lazy"></div><div class="bninfo">'+(b.badge?'<span class="pill" style="position:static">'+esc(b.badge)+'</span> ':'')+(b.active?'':'<span class="pill mute" style="position:static">숨김</span>')+'<b>'+esc(b.title1)+esc(b.title2)+'</b><div class="note">'+esc(b.sub||"")+'</div><div class="note">'+esc(linkLabel(b))+'</div></div>'+
      '<div class="acts"><button class="btn sm" data-act="bn-move" data-id="'+b.id+'" data-d="up"'+(i?'':' disabled')+' aria-label="앞으로">▲</button><button class="btn sm" data-act="bn-move" data-id="'+b.id+'" data-d="down"'+(i<L.length-1?'':' disabled')+' aria-label="뒤로">▼</button><button class="btn sm" data-act="bn-toggle" data-id="'+b.id+'">'+(b.active?"숨기기":"보이기")+'</button><button class="btn sm" data-act="open" data-m="banner" data-id="'+b.id+'">수정</button><button class="btn sm bad" data-act="open" data-m="banner-del" data-id="'+b.id+'">삭제</button></div></div>'}).join(""):'<div class="empty">배너가 없습니다.</div>')+'</div></div>';
+}
+function admHome(){
+  var H=HM(),S2=H.show||{},sel=H.popularIds||[];
+  var t=function(k,label,full){return '<label class="field'+(full?' full':'')+'" for="hm-'+k+'"><span>'+label+'</span><input class="inp" id="hm-'+k+'" name="'+k+'" value="'+esc(H[k]||"")+'"></label>'};
+  var sw=[["quick","빠른 메뉴 줄"],["popular","인기 여행지"],["featured","추천 여행 (큰 카드)"],["perks","포인트 혜택 안내"],["hotels","5성급 호텔"],["countries","나라별 여행 정보"],["list","전체 여행 상품"],["reviews","고객 후기"]];
+  return '<form data-form="homeset" class="stack">'+
+   '<div class="panel"><h3>로고 · 맨 위 안내줄</h3><div class="fgrid">'+t("logo","로고 글자")+t("logoSub","로고 옆 작은 글자 (비우면 숨김)")+t("notice","맨 위 노란 안내줄 문구 (비우면 숨김)",true)+'</div></div>'+
+   '<div class="panel"><h3>보여줄 영역</h3><p class="note" style="margin:-6px 0 10px">체크를 끄면 홈 화면에서 그 영역이 사라집니다. 메인 배너는 "메인 배너" 탭에서 관리합니다.</p><div class="ckrow">'+sw.map(function(s){return '<label class="ck"><input type="checkbox" name="show_'+s[0]+'"'+(S2[s[0]]!==false?' checked':'')+'> '+s[1]+'</label>'}).join("")+'</div></div>'+
+   '<div class="panel"><h3>인기 여행지</h3><div class="fgrid">'+t("popularTitle","제목")+t("popularSub","설명")+'</div><p class="note" style="margin:12px 0 6px">보여줄 상품 (고르지 않으면 사진 있는 상품 4개가 자동으로 나옵니다, 최대 12개)</p><div class="ckrow pick">'+S.products.map(function(p){return '<label class="ck"><input type="checkbox" name="pop" value="'+p.id+'"'+(sel.indexOf(p.id)>-1?' checked':'')+'> '+esc(p.name)+'</label>'}).join("")+'</div></div>'+
+   '<div class="panel"><h3>추천 여행 (큰 카드)</h3><div class="fgrid">'+t("featuredTitle","제목")+'<label class="field" for="hm-fid"><span>추천 상품</span><select class="inp" id="hm-fid" name="featuredId"><option value="">자동 (인기 여행지 첫 번째)</option>'+S.products.map(function(p){return '<option value="'+p.id+'"'+(H.featuredId===p.id?' selected':'')+'>'+esc(p.name)+'</option>'}).join("")+'</select></label></div></div>'+
+   '<div class="panel"><h3>그 밖의 영역 제목</h3><div class="fgrid">'+t("hotelsTitle","5성급 호텔 제목")+t("hotelsSub","5성급 호텔 설명")+t("countriesTitle","나라별 정보 제목")+t("countriesSub","나라별 정보 설명")+t("listTitle","전체 상품 제목")+t("reviewsTitle","고객 후기 제목")+t("reviewsSub","고객 후기 설명",true)+'</div></div>'+
+   '<div class="panel"><p class="err" id="hm-err"></p><button class="btn pri" type="submit">홈 화면 저장</button></div></form>';
+}
+function admRules(){
+  var L=S.limits||{},n=function(k,label,v,unit){return '<label class="field" for="ru-'+k+'"><span>'+label+'</span><div style="display:flex;align-items:center;gap:6px"><input class="inp num" id="ru-'+k+'" name="'+k+'" inputmode="numeric" value="'+v+'"><b style="white-space:nowrap">'+unit+'</b></div></label>'};
+  return '<form data-form="rules" class="stack" style="max-width:760px">'+
+   '<div class="panel"><h3>포인트 규칙</h3><p class="note" style="margin:-6px 0 12px">바꾸면 바로 홈 화면 안내 문구와 예약 계산에 반영됩니다. 이미 쌓인 포인트는 바뀌지 않습니다.</p><div class="fgrid">'+
+    n("signup","가입 축하 포인트",RULE.signup,"P")+n("rate","예약 적립률",Math.round(RULE.rate*100),"%")+n("minUse","최소 사용 포인트",RULE.minUse,"P")+n("maxRatio","결제 금액 대비 최대 사용",Math.round(RULE.maxRatio*100),"%")+n("review","후기 승인 기본 포인트",RULE.review||0,"P")+'</div></div>'+
+   '<div class="panel"><h3>후기 도배 방지</h3><p class="note" style="margin:-6px 0 12px">0으로 두면 그 제한을 쓰지 않습니다.</p><div class="fgrid">'+
+    n("gapMin","같은 회원 후기 간격",L.gapMin==null?10:L.gapMin,"분")+n("perDay","하루 최대 후기",L.perDay==null?3:L.perDay,"개")+n("pending","승인 대기 최대",L.pending==null?2:L.pending,"개")+n("minLen","후기 최소 글자",L.minLen||20,"자")+'</div></div>'+
+   '<div class="panel"><p class="err" id="ru-err"></p><button class="btn pri" type="submit">저장</button></div></form>';
 }
 function admSite(){
   var s=site(),f=function(k,label,ph,full){return '<label class="field'+(full?' full':'')+'" for="st-'+k+'"><span>'+label+'</span><input class="inp" id="st-'+k+'" name="'+k+'" value="'+esc(s[k]||"")+'" placeholder="'+(ph||"")+'"></label>'};
@@ -967,6 +994,8 @@ function openModal(kind,id){
      '<label class="field" for="bn-lc"><span>연결할 카테고리</span><select class="inp" id="bn-lc" name="linkCat"'+(lt==="cat"?'':' disabled')+'>'+CATS.slice(1).map(function(c){return '<option'+(lt==="cat"&&b.link===c?' selected':'')+'>'+esc(c)+'</option>'}).join("")+'</select></label>'+
      '<label class="field full" for="bn-lp"><span>연결할 상품</span><select class="inp" id="bn-lp" name="linkProduct"'+(lt==="product"?'':' disabled')+'>'+S.products.map(function(p){return '<option value="'+p.id+'"'+(lt==="product"&&b.link===p.id?' selected':'')+'>'+esc(p.name)+'</option>'}).join("")+'</select></label>'+
      '<div class="full"><p class="err" id="bn-err"></p><button class="btn pri block" type="submit">저장</button></div></form>')}
+  if(kind==="member-edit"){var mx=member(id);return modal('<h2>회원 정보 수정</h2><form data-form="member-edit" data-id="'+id+'" class="stack" style="gap:12px"><label class="field" for="me-n"><span>이름</span><input class="inp" id="me-n" name="name" value="'+esc(mx.name)+'"></label><label class="field" for="me-e"><span>이메일 (로그인 아이디)</span><input class="inp" id="me-e" name="email" type="email" value="'+esc(mx.email)+'"></label><label class="field" for="me-p"><span>연락처</span><input class="inp" id="me-p" name="phone" value="'+esc(mx.phone||"")+'"></label><p class="err" id="me-err"></p><button class="btn pri block" type="submit">저장</button></form>')}
+  if(kind==="member-pw"){var my=member(id);return modal('<h2>비밀번호 재설정</h2><p class="sub">'+esc(my.name)+' 회원의 새 비밀번호를 정합니다. 저장하면 그 회원은 다시 로그인해야 합니다.</p><form data-form="member-pw" data-id="'+id+'" class="stack" style="gap:12px"><label class="field" for="mp-n"><span>새 비밀번호 (8자 이상)</span><input class="inp" id="mp-n" name="pw" type="text" autocomplete="off"></label><p class="err" id="mp-err"></p><button class="btn pri block" type="submit">저장</button></form>')}
   if(kind==="banner-del")return confirmBox("배너를 삭제할까요?","이 배너가 홈 화면에서 사라집니다. 잠깐 빼두려면 삭제 대신 숨기기를 쓰세요.","do-bn-del",id,"배너 삭제");
 }
 function maxUse(total,bal){var cap=Math.floor(total*RULE.maxRatio);var v=Math.min(bal,cap);return v<RULE.minUse?0:v}
@@ -1044,7 +1073,7 @@ var forms={
     api("product-save",{id:f.dataset.id||"",name:f.name.value,cat:cs[0],cats:cs,img:f.img.value,scene:"beach",from:f.from.value,to:f.to.value,nights:f.nights.value,days:f.days.value,price:f.price.value,seats:f.seats.value,desc:f.desc.value}).then(function(r){done(r,"pr-err",function(){closeModal();render()})});
   },
   review:function(f){
-    var t=f.text.value.trim();if(t.length<20)return err("rv-err","후기는 20자 이상 써 주세요. (지금 "+t.length+"자)");
+    var t=f.text.value.trim(),ml=(S.limits&&S.limits.minLen)||20;if(t.length<ml)return err("rv-err","후기는 "+ml+"자 이상 써 주세요. (지금 "+t.length+"자)");
     api("review",{productId:f.productId.value,rating:f.rating.value,text:t}).then(function(r){done(r,"rv-err",render)});
   },
   cat:function(f){
@@ -1054,6 +1083,18 @@ var forms={
     var lt=f.linkType.value;
     api("banner-save",{id:f.dataset.id||"",img:f.img.value,badge:f.badge.value,button:f.button.value,title1:f.title1.value,title2:f.title2.value,sub:f.sub.value,linkType:lt,link:lt==="cat"?f.linkCat.value:lt==="product"?f.linkProduct.value:""}).then(function(r){done(r,"bn-err",function(){closeModal();BNI=0;render()})});
   },
+  homeset:function(f){
+    var d={show:{}};["logo","logoSub","notice","popularTitle","popularSub","featuredTitle","hotelsTitle","hotelsSub","countriesTitle","countriesSub","listTitle","reviewsTitle","reviewsSub"].forEach(function(k){d[k]=f[k].value});
+    ["quick","popular","featured","perks","hotels","countries","list","reviews"].forEach(function(k){d.show[k]=f["show_"+k].checked});
+    d.popularIds=[].slice.call(f.querySelectorAll('input[name="pop"]:checked')).map(function(x){return x.value});d.featuredId=f.featuredId.value;
+    api("home-save",d).then(function(r){done(r,"hm-err",render)});
+  },
+  rules:function(f){
+    var d={};["signup","rate","minUse","maxRatio","review","gapMin","perDay","pending","minLen"].forEach(function(k){d[k]=f[k].value});
+    api("rules-save",d).then(function(r){done(r,"ru-err",render)});
+  },
+  "member-edit":function(f){api("member-edit",{id:f.dataset.id,name:f.name.value,email:f.email.value,phone:f.phone.value}).then(function(r){done(r,"me-err",function(){closeModal();render()})})},
+  "member-pw":function(f){api("member-pw",{id:f.dataset.id,pw:f.pw.value}).then(function(r){done(r,"mp-err",closeModal)})},
   site:function(f){
     var d={};["company","ceo","bizNo","tourNo","address","phone","email","hours","kakao"].forEach(function(k){d[k]=f[k].value});
     api("settings",d).then(function(r){done(r,"st-err",render)});

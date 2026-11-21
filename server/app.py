@@ -11,9 +11,6 @@ os.makedirs(DATA, exist_ok=True)
 DB = os.path.join(DATA, "best.db")
 
 RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 0.3, "review": 1000}
-REVIEW_GAP = 10 * 60          # 같은 회원 후기 사이 최소 간격(초)
-REVIEW_DAY_MAX = 3            # 하루 최대 후기 수
-REVIEW_PENDING_MAX = 2        # 승인 대기 중 최대 후기 수
 SESSION_DAYS = 30
 LOCK = threading.RLock()
 UPLOADS = os.path.join(DATA, "uploads")
@@ -35,7 +32,30 @@ DEFAULT_BANNERS = [
     ["1570077188670-e3a8d69ac5ff", "해외 유명관광명소", "한 번쯤은, ", "세계 명소", "산토리니 · 파리 · 스위스 · 싱가포르", "해외 유명관광명소"]]
 
 
+DEFAULT_HOME = {
+    "logo": "베스트여행사", "logoSub": "BEST TOUR", "notice": "카카오톡 채널 추가하고 여행 혜택 알림 받기",
+    "show": {"quick": True, "popular": True, "featured": True, "perks": True, "hotels": True, "countries": True, "list": True, "reviews": True},
+    "popularTitle": "인기 여행지", "popularSub": "많이 찾는 지역부터 둘러보세요. 가격은 상담으로 안내해 드립니다.", "popularIds": [],
+    "featuredTitle": "베스트여행사 추천 여행", "featuredId": "",
+    "hotelsTitle": "전 세계 5성급 호텔", "hotelsSub": "인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.",
+    "countriesTitle": "나라별 여행 정보", "countriesSub": "관광 명소부터 안전정보까지 한눈에 확인하세요.",
+    "listTitle": "전체 여행 상품", "reviewsTitle": "고객 여행 후기", "reviewsSub": "베스트여행사와 함께 다녀온 회원님들의 이야기입니다."}
+DEFAULT_LIMITS = {"gapMin": 10, "perDay": 3, "pending": 2, "minLen": 20}
+
+
 def defaults(st):
+    st.setdefault("home", json.loads(json.dumps(DEFAULT_HOME)))
+    for k, v in DEFAULT_HOME.items():
+        st["home"].setdefault(k, v)
+    for k, v in DEFAULT_HOME["show"].items():
+        st["home"]["show"].setdefault(k, v)
+    st.setdefault("rule", {})
+    for k, v in RULE.items():
+        st["rule"].setdefault(k, v)
+    RULE.update(st["rule"])
+    st.setdefault("limits", dict(DEFAULT_LIMITS))
+    for k, v in DEFAULT_LIMITS.items():
+        st["limits"].setdefault(k, v)
     st.setdefault("reviews", [])
     st.setdefault("site", dict(DEFAULT_SITE))
     for k, v in DEFAULT_SITE.items():
@@ -154,7 +174,7 @@ def view(me):
                    for r in S["reviews"] if r["status"] == "approved"]
     pub_reviews.sort(key=lambda r: -r["at"])
     out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:60], "meId": None,
-           "site": S["site"], "categories": S["categories"], "banners": S["banners"],
+           "site": S["site"], "categories": S["categories"], "banners": S["banners"], "home": S["home"], "limits": S["limits"],
            "members": [], "bookings": [], "ledger": [], "audit": [], "reviews": []}
     if not me:
         return out
@@ -289,13 +309,14 @@ def a_review(me, d, ctx):
     pid = d.get("productId") or None
     if pid and not product(pid): pid = None
     if not 1 <= rating <= 5: raise Err("별점을 골라 주세요.")
-    if len(text) < 20: raise Err("후기는 20자 이상 써 주세요.")
+    LM = S["limits"]
+    if len(text) < LM["minLen"]: raise Err("후기는 %d자 이상 써 주세요." % LM["minLen"])
     if len(text) > 1000: raise Err("후기는 1,000자까지 쓸 수 있습니다.")
     mine = [r for r in S["reviews"] if r["memberId"] == me["id"]]
     t = now_ms()
-    if any(t - r["at"] < REVIEW_GAP * 1000 for r in mine): raise Err("후기는 10분에 한 번만 쓸 수 있습니다. 잠시 후 다시 써 주세요.")
-    if sum(1 for r in mine if t - r["at"] < 86400000) >= REVIEW_DAY_MAX: raise Err("후기는 하루 %d개까지 쓸 수 있습니다." % REVIEW_DAY_MAX)
-    if sum(1 for r in mine if r["status"] == "pending") >= REVIEW_PENDING_MAX: raise Err("승인을 기다리는 후기가 있습니다. 승인된 뒤에 다시 써 주세요.")
+    if LM["gapMin"] and any(t - r["at"] < LM["gapMin"] * 60000 for r in mine): raise Err("후기는 %d분에 한 번만 쓸 수 있습니다. 잠시 후 다시 써 주세요." % LM["gapMin"])
+    if LM["perDay"] and sum(1 for r in mine if t - r["at"] < 86400000) >= LM["perDay"]: raise Err("후기는 하루 %d개까지 쓸 수 있습니다." % LM["perDay"])
+    if LM["pending"] and sum(1 for r in mine if r["status"] == "pending") >= LM["pending"]: raise Err("승인을 기다리는 후기가 있습니다. 승인된 뒤에 다시 써 주세요.")
     norm = re.sub(r"[\s\W_]+", "", text)
     if any(re.sub(r"[\s\W_]+", "", r["text"]) == norm for r in S["reviews"]): raise Err("이미 같은 내용의 후기가 있습니다.")
     if re.search(r"(.)\1{9,}", text): raise Err("같은 글자를 반복한 후기는 등록할 수 없습니다.")
@@ -621,7 +642,70 @@ def a_banner_delete(me, d, ctx):
     return None, "배너를 삭제했습니다"
 
 
+def a_home_save(me, d, ctx):
+    need_admin(me)
+    H = S["home"]
+    for k, v in DEFAULT_HOME.items():
+        if isinstance(v, str):
+            H[k] = (str(d.get(k) if d.get(k) is not None else "")).strip()[:120]
+    H["logo"] = H["logo"] or S["site"].get("company") or "베스트여행사"
+    sh = d.get("show") or {}
+    for k in DEFAULT_HOME["show"]:
+        H["show"][k] = bool(sh.get(k))
+    H["popularIds"] = [x for x in (d.get("popularIds") or []) if product(x)][:12]
+    H["featuredId"] = d.get("featuredId") if product(d.get("featuredId")) else ""
+    audit("홈 화면 설정 수정")
+    return None, "홈 화면 설정을 저장했습니다"
+
+
+def a_rules_save(me, d, ctx):
+    need_admin(me)
+    try:
+        signup, rate, minuse, maxr, review = (to_int(d.get(k)) for k in ("signup", "rate", "minUse", "maxRatio", "review"))
+        gap, perday, pend, minlen = (to_int(d.get(k)) for k in ("gapMin", "perDay", "pending", "minLen"))
+    except Err:
+        raise Err("모든 칸을 숫자로 입력해 주세요.")
+    if not (0 <= signup <= 1000000 and 0 <= rate <= 50 and 0 <= minuse <= 1000000 and 0 <= maxr <= 100 and 0 <= review <= 1000000):
+        raise Err("포인트 규칙 값을 확인해 주세요. (적립률 0~50%, 사용 한도 0~100%)")
+    if not (0 <= gap <= 1440 and 0 <= perday <= 100 and 0 <= pend <= 100 and 1 <= minlen <= 500):
+        raise Err("후기 제한 값을 확인해 주세요.")
+    RULE.update({"signup": signup, "rate": rate / 100.0, "minUse": minuse, "maxRatio": maxr / 100.0, "review": review})
+    S["rule"] = dict(RULE)
+    S["limits"].update({"gapMin": gap, "perDay": perday, "pending": pend, "minLen": minlen})
+    audit("포인트 규칙 변경: 가입 %sP, 적립 %d%%, 최소 사용 %sP, 사용 한도 %d%%, 후기 %sP" % (won(signup), rate, won(minuse), maxr, won(review)))
+    return None, "포인트 규칙을 저장했습니다"
+
+
+def a_member_edit(me, d, ctx):
+    need_admin(me)
+    x = member(d.get("id"))
+    if not x: raise Err("회원을 찾을 수 없습니다.")
+    name, email, phone = (d.get("name") or "").strip(), (d.get("email") or "").strip(), (d.get("phone") or "").strip()
+    if len(name) < 2 or len(name) > 30: raise Err("이름을 2자 이상 입력해 주세요.")
+    if not EMAIL_RE.match(email): raise Err("이메일 형식이 올바르지 않습니다.")
+    if any(m is not x and m["email"].lower() == email.lower() for m in S["members"]): raise Err("다른 회원이 쓰는 이메일입니다.")
+    if phone and not re.fullmatch(r"[0-9\-+ ]{9,20}", phone): raise Err("연락처를 숫자로 입력해 주세요.")
+    audit("회원 정보 수정: %s → %s (%s)" % (x["name"], name, email))
+    x.update({"name": name, "email": email, "phone": phone})
+    return None, "회원 정보를 저장했습니다"
+
+
+def a_member_pw(me, d, ctx):
+    need_admin(me)
+    x = member(d.get("id"))
+    if not x: raise Err("회원을 찾을 수 없습니다.")
+    pw = d.get("pw") or ""
+    if len(pw) < 8: raise Err("새 비밀번호는 8자 이상이어야 합니다.")
+    x["pw"] = pw_hash(pw)
+    if x is not me:
+        with db() as c:
+            c.execute("DELETE FROM sessions WHERE member=?", (x["id"],))
+    audit("%s 회원 비밀번호 재설정" % x["name"])
+    return None, "비밀번호를 바꿨습니다. 회원에게 새 비밀번호를 알려 주세요"
+
+
 ACTIONS = {
+    "home-save": a_home_save, "rules-save": a_rules_save, "member-edit": a_member_edit, "member-pw": a_member_pw,
     "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
     "banner-save": a_banner_save, "banner-move": a_banner_move, "banner-toggle": a_banner_toggle, "banner-delete": a_banner_delete,
     "signup": a_signup, "login": a_login, "logout": a_logout, "password": a_password,
