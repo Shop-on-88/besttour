@@ -1025,7 +1025,7 @@ function openModal(kind,id){
       '<div class="cal">'+calMonth(p,y,mo)+calMonth(p,mo===11?y+1:y,(mo+1)%12)+'</div>'+
       '<div class="dsel">'+dsel+'</div>'+
       '<form data-form="booking" data-id="'+p.id+'" class="fgrid">'+
-      '<label class="field" for="bk-n"><span>인원 (잔여 '+p.seats+'석)</span><select class="inp" id="bk-n" name="people">'+[1,2,3,4,5,6].filter(function(n){return n<=p.seats}).map(function(n){return '<option value="'+n+'"'+(n===U.bkPeople?' selected':'')+'>성인 '+n+'명</option>'}).join("")+'</select></label>'+
+      '<label class="field" for="bk-n"><span>인원</span><select class="inp" id="bk-n" name="people">'+[1,2,3,4,5,6].filter(function(n){return n<=p.seats}).map(function(n){return '<option value="'+n+'"'+(n===U.bkPeople?' selected':'')+'>성인 '+n+'명</option>'}).join("")+'</select></label>'+
       '<label class="field" for="bk-p"><span>포인트 사용 (보유 '+won(bal)+'P)</span><input class="inp num" id="bk-p" name="use" inputmode="numeric" value="'+(U.bkUse||0)+'"></label>'+
       '<div class="full"><button class="btn sm" type="button" data-act="use-max">쓸 수 있는 만큼 모두 사용</button><div class="sum" id="bk-sum"></div><p class="err" id="bk-err"></p>'+
       '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.</p></div></form>'),bookingSum();
