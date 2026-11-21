@@ -67,6 +67,16 @@ def defaults(st):
         for c in st["categories"]:
             c["short"] = c["name"]
         st["catfix1"] = True
+    if not st.get("catfix2") and st.get("categories"):
+        names = [c["name"] for c in st["categories"]]
+        old_map = {"패키지여행": "해외여행", "해외 유명관광명소": "해외여행", "신혼여행": "허니문", "효도여행": "해외여행"}
+        for b in st.get("banners", []):
+            bd = b.get("badge")
+            new = bd if bd in names else old_map.get(bd)
+            if b.get("linkType") == "cat" and new in names:
+                if b.get("title2") == bd and bd not in names and bd != "효도여행": b["title2"] = new
+                b["link"], b["badge"] = new, new
+        st["catfix2"] = True
     st.setdefault("limits", dict(DEFAULT_LIMITS))
     for k, v in DEFAULT_LIMITS.items():
         st["limits"].setdefault(k, v)
