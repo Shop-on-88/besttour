@@ -35,7 +35,7 @@ DEFAULT_BANNERS = [
 DEFAULT_HOME = {
     "logo": "베스트여행사", "logoSub": "BEST TOUR", "notice": "카카오톡 채널 추가하고 여행 혜택 알림 받기",
     "show": {"quick": True, "popular": True, "featured": True, "perks": True, "hotels": True, "countries": True, "list": True, "reviews": True},
-    "popularTitle": "인기 여행지", "popularSub": "많이 찾는 지역부터 둘러보세요. 가격은 상담으로 안내해 드립니다.", "popularIds": [],
+    "popularTitle": "인기 여행지", "popularSub": "지금 가장 많이 찾는 여행 상품을 모았습니다.", "popularIds": [],
     "featuredTitle": "베스트여행사 추천 여행", "featuredId": "",
     "hotelsTitle": "전 세계 5성급 호텔", "hotelsSub": "인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.",
     "countriesTitle": "나라별 여행 정보", "countriesSub": "관광 명소부터 안전정보까지 한눈에 확인하세요.",
@@ -84,6 +84,8 @@ def defaults(st):
                 if p: p["seats"] = p.get("seats", 0) + b["people"]
                 b["seatsTaken"] = False
         st["seatfix1"] = True
+    if st.get("home", {}).get("popularSub") == "많이 찾는 지역부터 둘러보세요. 가격은 상담으로 안내해 드립니다.":
+        st["home"]["popularSub"] = "지금 가장 많이 찾는 여행 상품을 모았습니다."
     st.setdefault("limits", dict(DEFAULT_LIMITS))
     for k, v in DEFAULT_LIMITS.items():
         st["limits"].setdefault(k, v)
