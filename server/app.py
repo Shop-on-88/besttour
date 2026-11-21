@@ -283,6 +283,14 @@ def a_password(me, d, ctx):
     return me, "비밀번호를 바꿨습니다"
 
 
+def p_earn(p, pay, people):
+    t, v = p.get("earnType") or "default", int(p.get("earnValue") or 0)
+    if t == "none": return 0
+    if t == "fixed": return v * people
+    if t == "rate": return int(pay * v / 100)
+    return int(pay * RULE["rate"])
+
+
 def a_booking(me, d, ctx):
     need_member(me)
     p = product(d.get("productId"))
@@ -299,26 +307,41 @@ def a_booking(me, d, ctx):
     cap = int(total * RULE["maxRatio"])
     if use > cap: raise Err("이 예약에서는 최대 %sP까지 쓸 수 있습니다." % won(cap))
     pay = total - use
-    earn = int(pay * RULE["rate"])
+    earn = p_earn(p, pay, n)
     b = {"id": uid("b"), "memberId": me["id"], "productId": p["id"], "people": n, "total": total, "used": use,
-         "pay": pay, "earned": earn, "status": "confirmed", "at": now_ms(), "depart": depart}
+         "pay": pay, "earned": earn, "status": "pending", "at": now_ms(), "depart": depart}
     S["bookings"].append(b)
     p["seats"] -= n
     if use > 0: add_ledger(me["id"], "use", -use, "예약 시 사용", bookingId=b["id"])
-    if earn > 0: add_ledger(me["id"], "earn", earn, "예약 적립 %g%%" % (RULE["rate"] * 100), bookingId=b["id"])
-    return b, "예약이 확정되었습니다. %sP 적립" % won(earn)
+    return b, "예약 신청이 접수되었습니다. 담당자 확인 후 확정되면 %sP가 적립됩니다" % won(earn)
+
+
+def a_booking_confirm(me, d, ctx):
+    need_admin(me)
+    b = next((x for x in S["bookings"] if x["id"] == d.get("id")), None)
+    if not b: raise Err("예약을 찾을 수 없습니다.")
+    if b["status"] != "pending": raise Err("확정 대기 중인 예약만 확정할 수 있습니다.")
+    b["status"], b["confirmedAt"] = "confirmed", now_ms()
+    if b["earned"] > 0 and not b.get("earnPaid"):
+        p = product(b["productId"])
+        add_ledger(b["memberId"], "earn", b["earned"], "예약 확정 적립" + (" (" + p["name"] + ")" if p else ""), bookingId=b["id"])
+        b["earnPaid"] = True
+    x = member(b["memberId"])
+    audit("%s 회원 예약 확정, %sP 적립" % (x["name"] if x else "-", won(b["earned"])))
+    return b, "예약을 확정했습니다. %sP 적립" % won(b["earned"])
 
 
 def a_booking_cancel(me, d, ctx):
     need_member(me)
     b = next((x for x in S["bookings"] if x["id"] == d.get("id")), None)
     if not b or (me["role"] != "admin" and b["memberId"] != me["id"]): raise Err("예약을 찾을 수 없습니다.")
-    if b["status"] != "confirmed": raise Err("이미 처리된 예약입니다.")
-    if balance(b["memberId"]) + b["used"] - b["earned"] < 0:
+    if b["status"] not in ("confirmed", "pending"): raise Err("이미 처리된 예약입니다.")
+    revoke = b["earned"] if (b["status"] == "confirmed" and b.get("earnPaid", True)) else 0
+    if balance(b["memberId"]) + b["used"] - revoke < 0:
         raise Err("적립 포인트를 이미 사용해 회수할 잔액이 부족합니다. 관리자에게 문의하세요.")
     b["status"], b["cancelledAt"] = "cancelled", now_ms()
     if b["used"] > 0: add_ledger(b["memberId"], "refund", b["used"], "예약 취소로 사용 포인트 복원", bookingId=b["id"])
-    if b["earned"] > 0: add_ledger(b["memberId"], "revoke", -b["earned"], "예약 취소로 적립 포인트 회수", bookingId=b["id"])
+    if revoke > 0: add_ledger(b["memberId"], "revoke", -revoke, "예약 취소로 적립 포인트 회수", bookingId=b["id"])
     p = product(b["productId"])
     if p: p["seats"] += b["people"]
     if me["role"] == "admin":
@@ -471,7 +494,14 @@ def a_product_save(me, d, ctx):
     need_admin(me)
     v = {"name": (d.get("name") or "").strip(), "cat": d.get("cat") or "패키지여행", "scene": d.get("scene") or "beach",
          "from": (d.get("from") or "").strip().upper(), "to": (d.get("to") or "").strip().upper(), "desc": (d.get("desc") or "").strip(),
-         "img": clean_img(d.get("img"))}
+         "img": clean_img(d.get("img")),
+         "earnType": d.get("earnType") if d.get("earnType") in ("default", "rate", "fixed", "none") else "default"}
+    try:
+        v["earnValue"] = max(0, to_int(d.get("earnValue") or 0))
+    except Err:
+        raise Err("적립 값을 숫자로 입력해 주세요.")
+    if v["earnType"] == "rate" and v["earnValue"] > 50: raise Err("적립률은 50% 이하로 입력해 주세요.")
+    if v["earnType"] in ("rate", "fixed") and v["earnValue"] == 0: raise Err("적립 값을 입력해 주세요.")
     names = [c["name"] for c in S["categories"]]
     cats = [c for c in (d.get("cats") or []) if c in names]
     if v["cat"] not in names: v["cat"] = cats[0] if cats else (names[0] if names else "")
@@ -769,7 +799,7 @@ ACTIONS = {
     "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
     "banner-save": a_banner_save, "banner-move": a_banner_move, "banner-toggle": a_banner_toggle, "banner-delete": a_banner_delete,
     "signup": a_signup, "login": a_login, "logout": a_logout, "password": a_password,
-    "booking": a_booking, "booking-cancel": a_booking_cancel,
+    "booking": a_booking, "booking-cancel": a_booking_cancel, "booking-confirm": a_booking_confirm,
     "review": a_review, "review-approve": a_review_approve, "review-reject": a_review_reject, "review-delete": a_review_delete,
     "adjust": a_adjust, "ledger-edit": a_ledger_edit, "ledger-delete": a_ledger_delete,
     "member-status": a_member_status, "member-delete": a_member_delete, "member-seen": a_member_seen,
@@ -832,7 +862,9 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, {"ok": True, "members": sum(1 for m in S["members"] if m["role"] != "admin"),
                                        "lastJoin": max([m["joined"] for m in S["members"] if m["role"] != "admin"] or [0]),
                                        "pendingReviews": sum(1 for r in S["reviews"] if r["status"] == "pending"),
-                                       "lastReview": max([r["at"] for r in S["reviews"]] or [0])})
+                                       "lastReview": max([r["at"] for r in S["reviews"]] or [0]),
+                                       "pendingBookings": sum(1 for b in S["bookings"] if b["status"] == "pending"),
+                                       "lastBooking": max([b["at"] for b in S["bookings"]] or [0])})
             mm = re.fullmatch(r"/api/img/([\w\-]+\.(jpg|png|webp))", self.path.split("?")[0])
             if mm:
                 fp = os.path.join(UPLOADS, mm.group(1))
