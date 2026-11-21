@@ -1,9 +1,9 @@
 #!/bin/bash
-# best.shoponph.online 사이트 + 회원 서버 설치 (다른 사업 폴더·설정은 건드리지 않음)
+# bestviptour.com 사이트 + 회원 서버 설치 (다른 사업 폴더·설정은 건드리지 않음)
 set -e
 D=/root/besttour
 DATA=/root/besttour-data
-DOMAIN=${DOMAIN:-best.shoponph.online}
+DOMAIN=${DOMAIN:-bestviptour.com}
 if [ -d "$D/.git" ]; then git -C "$D" pull -q --ff-only; else git clone -q https://github.com/Shop-on-88/besttour "$D"; fi
 mkdir -p /var/www/besttour "$DATA"
 chmod 700 "$DATA"
@@ -56,7 +56,7 @@ NGX
 grep -q 'besttour-api.conf' "$CONF" || sed -i 's|^\(\s*\)root /var/www/besttour;|\1root /var/www/besttour;\n\1include /etc/nginx/snippets/besttour-api.conf;|' "$CONF"
 nginx -t
 systemctl reload nginx
-grep -q "listen 443" "$CONF" || certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || echo "인증서 발급 실패: 몇 분 뒤 이 명령을 다시 실행하세요."
+grep -q "listen 443" "$CONF" || certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || echo "인증서 발급 실패: 몇 분 뒤 이 명령을 다시 실행하세요."
 
 # 5분마다 자동 반영 (서버 코드가 바뀌면 회원 서버도 재시작)
 chmod +x "$D/deploy/sync.sh"
