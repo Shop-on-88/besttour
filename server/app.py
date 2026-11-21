@@ -16,6 +16,36 @@ REVIEW_DAY_MAX = 3            # 하루 최대 후기 수
 REVIEW_PENDING_MAX = 2        # 승인 대기 중 최대 후기 수
 SESSION_DAYS = 30
 LOCK = threading.RLock()
+UPLOADS = os.path.join(DATA, "uploads")
+os.makedirs(UPLOADS, exist_ok=True)
+PARTS = {}  # 나눠 올리는 이미지 조각
+
+DEFAULT_SITE = {"company": "베스트여행사", "ceo": "임상수", "bizNo": "202-17-96610", "tourNo": "제2026-000002호",
+                "address": "충청북도 괴산군 괴산읍 읍내로 322", "phone": "", "email": "", "kakao": "", "hours": "평일 09:00 - 18:00"}
+DEFAULT_CATS = [{"name": "패키지여행", "short": "패키지", "img": "ph/1559592413-7cec4d0cae2b.jpg"},
+                {"name": "해외 유명관광명소", "short": "해외명소", "img": "ph/1502602898657-3e91760cbb34.jpg"},
+                {"name": "신혼여행", "short": "신혼", "img": "ph/1537996194471-e657df975ab4.jpg"},
+                {"name": "효도여행", "short": "효도", "img": "ph/1493976040374-85c8e12f0c0e.jpg"},
+                {"name": "국내여행", "short": "국내", "img": "ph/1507525428034-b723cf961d3e.jpg"}]
+DEFAULT_BANNERS = [
+    ["1514282401047-d79a71a590e8", "신혼여행", "둘만의 시간, ", "허니문", "몰디브 · 발리 · 하와이 · 칸쿤", "신혼여행"],
+    ["1559592413-7cec4d0cae2b", "패키지여행", "가까운 곳부터, ", "패키지여행", "다낭 · 오사카 · 대만 · 방콕", "패키지여행"],
+    ["1493976040374-85c8e12f0c0e", "효도여행", "부모님과 함께, ", "효도여행", "규슈 온천 · 교토 · 장가계 · 백두산", "효도여행"],
+    ["1562680802-9cf8b15f419d", "국내여행", "이번 주말엔, ", "국내여행", "제주 · 강릉 · 부산 · 경주", "국내여행"],
+    ["1570077188670-e3a8d69ac5ff", "해외 유명관광명소", "한 번쯤은, ", "세계 명소", "산토리니 · 파리 · 스위스 · 싱가포르", "해외 유명관광명소"]]
+
+
+def defaults(st):
+    st.setdefault("reviews", [])
+    st.setdefault("site", dict(DEFAULT_SITE))
+    for k, v in DEFAULT_SITE.items():
+        st["site"].setdefault(k, v)
+    st.setdefault("categories", [dict(c) for c in DEFAULT_CATS])
+    if "banners" not in st:
+        st["banners"] = [{"id": "bn%d" % i, "img": "ph/bn_%s.jpg" % b[0], "badge": b[1], "title1": b[2], "title2": b[3],
+                          "sub": b[4], "linkType": "cat", "link": b[5], "button": "상품 보기", "active": True}
+                         for i, b in enumerate(DEFAULT_BANNERS)]
+    return st
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -53,15 +83,14 @@ def load():
     with db() as c:
         row = c.execute("SELECT v FROM kv WHERE k='state'").fetchone()
     if row:
-        st = json.loads(row[0])
-        st.setdefault("reviews", [])
-        return st
+        return defaults(json.loads(row[0]))
     with open(os.path.join(HERE, "products_seed.json"), encoding="utf-8") as f:
         products = json.load(f)
     admin_pw = secrets.token_urlsafe(9)
     st = {"members": [{"id": "m0", "name": "관리자", "email": "admin@besttour", "phone": "",
                        "pw": pw_hash(admin_pw), "role": "admin", "joined": now_ms(), "status": "active"}],
           "products": products, "bookings": [], "ledger": [], "audit": [], "reviews": []}
+    defaults(st)
     with open(os.path.join(DATA, "admin.txt"), "w") as f:
         f.write("관리자 아이디: admin@besttour\n관리자 비밀번호: %s\n" % admin_pw)
     os.chmod(os.path.join(DATA, "admin.txt"), 0o600)
@@ -125,6 +154,7 @@ def view(me):
                    for r in S["reviews"] if r["status"] == "approved"]
     pub_reviews.sort(key=lambda r: -r["at"])
     out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:60], "meId": None,
+           "site": S["site"], "categories": S["categories"], "banners": S["banners"],
            "members": [], "bookings": [], "ledger": [], "audit": [], "reviews": []}
     if not me:
         return out
@@ -394,7 +424,13 @@ def a_member_seen(me, d, ctx):
 def a_product_save(me, d, ctx):
     need_admin(me)
     v = {"name": (d.get("name") or "").strip(), "cat": d.get("cat") or "패키지여행", "scene": d.get("scene") or "beach",
-         "from": (d.get("from") or "").strip().upper(), "to": (d.get("to") or "").strip().upper(), "desc": (d.get("desc") or "").strip()}
+         "from": (d.get("from") or "").strip().upper(), "to": (d.get("to") or "").strip().upper(), "desc": (d.get("desc") or "").strip(),
+         "img": clean_img(d.get("img"))}
+    names = [c["name"] for c in S["categories"]]
+    cats = [c for c in (d.get("cats") or []) if c in names]
+    if v["cat"] not in names: v["cat"] = cats[0] if cats else (names[0] if names else "")
+    if v["cat"] not in cats: cats = [v["cat"]] + cats
+    v["cats"] = cats
     for k in ("nights", "days", "price", "seats"):
         try:
             v[k] = max(0, to_int(d.get(k) or 0))
@@ -408,10 +444,9 @@ def a_product_save(me, d, ctx):
         p = product(pid)
         if not p: raise Err("상품을 찾을 수 없습니다.")
         p.update(v)
-        if v["cat"] not in p.get("cats", []): p["cats"] = [v["cat"]] + p.get("cats", [])
         audit("상품 수정: " + v["name"])
     else:
-        v.update({"id": uid("p"), "rate": 0, "active": True, "cats": [v["cat"]]})
+        v.update({"id": uid("p"), "rate": 0, "active": True})
         S["products"].append(v)
         audit("상품 추가: " + v["name"])
     return None, "상품을 저장했습니다"
@@ -435,7 +470,160 @@ def a_product_delete(me, d, ctx):
     return None, "상품을 삭제했습니다"
 
 
+def clean_img(v):
+    v = (v or "").strip()
+    if re.fullmatch(r"(ph/[\w\-]+\.jpg|/api/img/[\w\-]+\.(jpg|png|webp))", v):
+        return v
+    return ""
+
+
+def a_upload(me, d, ctx):
+    need_admin(me)
+    key, part, total, data = str(d.get("key") or ""), to_int(d.get("part")), to_int(d.get("total")), d.get("data") or ""
+    if not re.fullmatch(r"[a-z0-9]{8,32}", key) or not 0 <= part < total <= 60 or not re.fullmatch(r"[A-Za-z0-9+/=]*", data):
+        raise Err("이미지 업로드 형식이 올바르지 않습니다.")
+    PARTS.setdefault(key, {})[part] = data
+    if len(PARTS[key]) < total:
+        return None, ""
+    import base64
+    raw = base64.b64decode("".join(PARTS.pop(key)[i] for i in range(total)))
+    if raw[:3] == b"\xff\xd8\xff": ext = "jpg"
+    elif raw[:8] == b"\x89PNG\r\n\x1a\n": ext = "png"
+    elif raw[:4] == b"RIFF" and raw[8:12] == b"WEBP": ext = "webp"
+    else: raise Err("JPG, PNG, WEBP 이미지만 올릴 수 있습니다.")
+    if len(raw) > 6 * 1024 * 1024: raise Err("이미지가 너무 큽니다.")
+    name = "%s.%s" % (uid("i"), ext)
+    with open(os.path.join(UPLOADS, name), "wb") as f:
+        f.write(raw)
+    ctx["img"] = "/api/img/" + name
+    return None, ""
+
+
+def a_settings(me, d, ctx):
+    need_admin(me)
+    for k in DEFAULT_SITE:
+        S["site"][k] = (str(d.get(k) or "")).strip()[:200]
+    if not S["site"]["company"]: raise Err("상호를 입력해 주세요.")
+    if S["site"]["kakao"] and not re.match(r"^https://", S["site"]["kakao"]): raise Err("카카오톡 상담 주소는 https:// 로 시작해야 합니다.")
+    audit("사이트 정보 수정")
+    return None, "사이트 정보를 저장했습니다"
+
+
+def find_cat(name):
+    return next((c for c in S["categories"] if c["name"] == name), None)
+
+
+def a_cat_save(me, d, ctx):
+    need_admin(me)
+    old, name = (d.get("old") or "").strip(), re.sub(r"\s+", " ", (d.get("name") or "")).strip()
+    short = (d.get("short") or "").strip()[:10] or name[:6]
+    img = clean_img(d.get("img"))
+    if not 1 <= len(name) <= 20: raise Err("카테고리 이름을 1~20자로 입력해 주세요.")
+    if name == "전체": raise Err("'전체'는 카테고리 이름으로 쓸 수 없습니다.")
+    other = find_cat(name)
+    if old:
+        c = find_cat(old)
+        if not c: raise Err("카테고리를 찾을 수 없습니다.")
+        if other and other is not c: raise Err("같은 이름의 카테고리가 이미 있습니다.")
+        c.update({"name": name, "short": short, "img": img or c.get("img", "")})
+        if old != name:
+            for p in S["products"]:
+                p["cats"] = [name if x == old else x for x in p.get("cats", [p.get("cat")])]
+                if p.get("cat") == old: p["cat"] = name
+            for b in S["banners"]:
+                if b.get("linkType") == "cat" and b.get("link") == old: b["link"] = name
+            audit("카테고리 이름 변경: %s → %s" % (old, name))
+        else:
+            audit("카테고리 수정: " + name)
+        return None, "카테고리를 저장했습니다"
+    if other: raise Err("같은 이름의 카테고리가 이미 있습니다.")
+    if len(S["categories"]) >= 20: raise Err("카테고리는 20개까지 만들 수 있습니다.")
+    S["categories"].append({"name": name, "short": short, "img": img})
+    audit("카테고리 추가: " + name)
+    return None, "카테고리를 추가했습니다"
+
+
+def a_cat_move(me, d, ctx):
+    need_admin(me)
+    c = find_cat(d.get("name"))
+    if not c: raise Err("카테고리를 찾을 수 없습니다.")
+    L = S["categories"]; i = L.index(c); j = i + (1 if d.get("dir") == "down" else -1)
+    if 0 <= j < len(L): L[i], L[j] = L[j], L[i]
+    return None, ""
+
+
+def a_cat_delete(me, d, ctx):
+    need_admin(me)
+    c = find_cat(d.get("name"))
+    if not c: raise Err("카테고리를 찾을 수 없습니다.")
+    if len(S["categories"]) <= 1: raise Err("카테고리는 최소 1개 있어야 합니다.")
+    S["categories"].remove(c)
+    first = S["categories"][0]["name"]
+    for p in S["products"]:
+        cs = [x for x in p.get("cats", [p.get("cat")]) if x != c["name"]]
+        p["cats"] = cs or [first]
+        if p.get("cat") == c["name"]: p["cat"] = p["cats"][0]
+    for b in S["banners"]:
+        if b.get("linkType") == "cat" and b.get("link") == c["name"]: b["link"] = first
+    audit("카테고리 삭제: %s (상품은 다른 카테고리로 옮김)" % c["name"])
+    return None, "카테고리를 삭제했습니다"
+
+
+def find_banner(bid):
+    return next((b for b in S["banners"] if b["id"] == bid), None)
+
+
+def a_banner_save(me, d, ctx):
+    need_admin(me)
+    v = {k: (str(d.get(k) or "")).strip()[:80] for k in ("badge", "title1", "title2", "sub", "button")}
+    v["img"] = clean_img(d.get("img"))
+    v["linkType"] = d.get("linkType") if d.get("linkType") in ("cat", "product", "none") else "none"
+    v["link"] = (d.get("link") or "").strip()
+    if not v["img"]: raise Err("배너 이미지를 올려 주세요.")
+    if not (v["title1"] or v["title2"]): raise Err("배너 제목을 입력해 주세요.")
+    if v["linkType"] == "cat" and not find_cat(v["link"]): raise Err("연결할 카테고리를 골라 주세요.")
+    if v["linkType"] == "product" and not product(v["link"]): raise Err("연결할 상품을 골라 주세요.")
+    v["button"] = v["button"] or "상품 보기"
+    bid = d.get("id")
+    if bid:
+        b = find_banner(bid)
+        if not b: raise Err("배너를 찾을 수 없습니다.")
+        b.update(v); audit("메인 배너 수정: %s%s" % (v["title1"], v["title2"]))
+    else:
+        if len(S["banners"]) >= 15: raise Err("배너는 15개까지 넣을 수 있습니다.")
+        v.update({"id": uid("bn"), "active": True}); S["banners"].append(v)
+        audit("메인 배너 추가: %s%s" % (v["title1"], v["title2"]))
+    return None, "배너를 저장했습니다"
+
+
+def a_banner_move(me, d, ctx):
+    need_admin(me)
+    b = find_banner(d.get("id"))
+    if not b: raise Err("배너를 찾을 수 없습니다.")
+    L = S["banners"]; i = L.index(b); j = i + (1 if d.get("dir") == "down" else -1)
+    if 0 <= j < len(L): L[i], L[j] = L[j], L[i]
+    return None, ""
+
+
+def a_banner_toggle(me, d, ctx):
+    need_admin(me)
+    b = find_banner(d.get("id"))
+    if not b: raise Err("배너를 찾을 수 없습니다.")
+    b["active"] = not b.get("active")
+    return None, "배너를 %s" % ("다시 보이게 했습니다" if b["active"] else "숨겼습니다")
+
+
+def a_banner_delete(me, d, ctx):
+    need_admin(me)
+    b = find_banner(d.get("id"))
+    if not b: raise Err("배너를 찾을 수 없습니다.")
+    S["banners"].remove(b); audit("메인 배너 삭제: %s%s" % (b.get("title1", ""), b.get("title2", "")))
+    return None, "배너를 삭제했습니다"
+
+
 ACTIONS = {
+    "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
+    "banner-save": a_banner_save, "banner-move": a_banner_move, "banner-toggle": a_banner_toggle, "banner-delete": a_banner_delete,
     "signup": a_signup, "login": a_login, "logout": a_logout, "password": a_password,
     "booking": a_booking, "booking-cancel": a_booking_cancel,
     "review": a_review, "review-approve": a_review_approve, "review-reject": a_review_reject, "review-delete": a_review_delete,
@@ -501,6 +689,19 @@ class H(BaseHTTPRequestHandler):
                                        "lastJoin": max([m["joined"] for m in S["members"] if m["role"] != "admin"] or [0]),
                                        "pendingReviews": sum(1 for r in S["reviews"] if r["status"] == "pending"),
                                        "lastReview": max([r["at"] for r in S["reviews"]] or [0])})
+            mm = re.fullmatch(r"/api/img/([\w\-]+\.(jpg|png|webp))", self.path.split("?")[0])
+            if mm:
+                fp = os.path.join(UPLOADS, mm.group(1))
+                if os.path.isfile(fp):
+                    with open(fp, "rb") as f:
+                        body = f.read()
+                    self.send_response(200)
+                    self.send_header("Content-Type", {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[mm.group(2)])
+                    self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
             if self.path.startswith("/api/health"):
                 return self.send(200, {"ok": True})
         self.send(404, {"ok": False, "err": "not found"})
@@ -516,7 +717,7 @@ class H(BaseHTTPRequestHandler):
         if origin and host and re.sub(r"^https?://", "", origin) != host:
             return self.send(403, {"ok": False, "err": "허용되지 않은 요청입니다."})
         try:
-            n = min(int(self.headers.get("Content-Length") or 0), 100000)
+            n = min(int(self.headers.get("Content-Length") or 0), 300000)
             d = json.loads(self.rfile.read(n) or b"{}")
             if not isinstance(d, dict):
                 raise ValueError
@@ -556,6 +757,8 @@ class H(BaseHTTPRequestHandler):
                         c.execute("DELETE FROM sessions WHERE token=?", (tok,))
                 cookie = "bt_s=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
                 me = None
+            if name == "upload":
+                return self.send(200, {"ok": True, "img": ctx.get("img")})
             return self.send(200, {"ok": True, "msg": msg, "state": view(me)}, cookie)
 
 
