@@ -495,6 +495,7 @@ def a_product_save(me, d, ctx):
     v = {"name": (d.get("name") or "").strip(), "cat": d.get("cat") or "패키지여행", "scene": d.get("scene") or "beach",
          "from": (d.get("from") or "").strip().upper(), "to": (d.get("to") or "").strip().upper(), "desc": (d.get("desc") or "").strip(),
          "img": clean_img(d.get("img")),
+         "tags": [t for t in (d.get("tags") or []) if isinstance(t, str) and re.fullmatch(r"[\w\-]{1,30}", t)][:20],
          "earnType": d.get("earnType") if d.get("earnType") in ("default", "rate", "fixed", "none") else "default"}
     try:
         v["earnValue"] = max(0, to_int(d.get("earnValue") or 0))
@@ -773,8 +774,9 @@ def a_content_save(me, d, ctx):
         if not isinstance(x, dict): continue
         if key == "quick":
             to = _txt(x.get("to"), 80)
-            if not re.fullmatch(r"(sec:(hot|list|perks|hotels|ctry|reviews)|mypage|install|kakao|cat:.{1,20}|product:[\w\-]{1,40})", to): to = "sec:list"
-            it = {"label": _txt(x.get("label"), 20), "icon": _txt(x.get("icon"), 4), "img": clean_img(x.get("img")), "to": to, "hl": bool(x.get("hl"))}
+            if not re.fullmatch(r"(tag|sec:(hot|list|perks|hotels|ctry|reviews)|mypage|install|kakao|cat:.{1,20}|product:[\w\-]{1,40})", to): to = "sec:list"
+            qid = _txt(x.get("id"), 30)
+            it = {"id": qid if re.fullmatch(r"[\w\-]{1,30}", qid or "") else uid("q"), "label": _txt(x.get("label"), 20), "icon": _txt(x.get("icon"), 4), "img": clean_img(x.get("img")), "to": to, "hl": bool(x.get("hl"))}
             if it["label"]: out.append(it)
         elif key == "hotels":
             it = {k: _txt(x.get(k), 40) for k in ("id", "title", "area", "star", "price", "more", "country")}

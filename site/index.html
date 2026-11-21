@@ -586,11 +586,13 @@ var DEF_HOTELS=[["vn","다낭·나트랑",""],["th","방콕·푸껫","1639647564
 function hotelList(){if(S.hotels)return S.hotels;return DEF_HOTELS.map(function(h,i){return {id:"h"+i,title:h[1]+" 럭셔리 호텔",area:h[1],img:h[2]?"ph/"+h[2]+".jpg":"",country:h[0],star:"★ 5성급 이상",price:"최저가 준비중",more:"여행정보 보기"}})}
 function countryList(){if(S.countries)return S.countries;return ["vn","jp","th","ph","id","ch","kr"].map(function(k){var C=COUNTRY[k];return {id:k,name:C.name,flag:C.flag,alert:C.alert,tips:C.tips.slice(),emg:C.emg.map(function(e){return {label:e[0],num:e[1]}}),spots:C.spots.map(function(sp){return {name:sp[0],desc:sp[2],img:"ph/"+(SPOTIMG[sp[0]]||PH.p1)+".jpg"}})}})}
 function countryOf(id){return countryList().find(function(c){return c.id===id})}
-function quickList(){if(S.quick)return S.quick;return [
- {label:"앱 설치",icon:"",img:"",to:"install",hl:true},{label:"베스트 Pick",icon:"★",img:"",to:"sec:hot"},{label:"BEST 특가",icon:"",img:"ph/"+PH.p1+".jpg",to:"sec:hot"},
- {label:"신규 상품",icon:"NEW",img:"",to:"sec:list"},{label:"특별 예약",icon:"",img:"ph/"+PH.p5+".jpg",to:"sec:list"},{label:"테마 여행",icon:"",img:"ph/"+PH.p7+".jpg",to:"sec:list"},
- {label:"내 포인트",icon:"P",img:"",to:"mypage"},{label:"카카오톡 상담",icon:"♥",img:"",to:"kakao"}]}
-var QTO=[["sec:hot","인기 여행지로 이동"],["sec:list","전체 상품으로 이동"],["sec:hotels","호텔로 이동"],["sec:ctry","나라별 정보로 이동"],["sec:reviews","고객 후기로 이동"],["mypage","마이페이지"],["install","앱 설치"],["kakao","카카오톡 상담"]];
+function quickList(){if(S.quick)return S.quick.map(function(q,i){if(!q.id)q.id="q"+i;return q});return [
+ {id:"qi",label:"앱 설치",icon:"",img:"",to:"install",hl:true},{id:"qbp",label:"베스트 Pick",icon:"★",img:"",to:"tag"},{id:"qbs",label:"BEST 특가",icon:"",img:"ph/"+PH.p1+".jpg",to:"tag"},
+ {id:"qnew",label:"신규 상품",icon:"NEW",img:"",to:"tag"},{id:"qsp",label:"특별 예약",icon:"",img:"ph/"+PH.p5+".jpg",to:"tag"},{id:"qth",label:"테마 여행",icon:"",img:"ph/"+PH.p7+".jpg",to:"tag"},
+ {id:"qpt",label:"내 포인트",icon:"P",img:"",to:"mypage"},{id:"qk",label:"카카오톡 상담",icon:"♥",img:"",to:"kakao"}]}
+function tagList(){return quickList().filter(function(q){return q.to==="tag"})}
+function tagName(id){var t=quickList().find(function(q){return q.id===id});return t?t.label:""}
+var QTO=[["tag","체크한 상품 모아보기 (상품 수정 창에서 체크)"],["sec:hot","인기 여행지로 이동"],["sec:list","전체 상품으로 이동"],["sec:hotels","호텔로 이동"],["sec:ctry","나라별 정보로 이동"],["sec:reviews","고객 후기로 이동"],["mypage","마이페이지"],["install","앱 설치"],["kakao","카카오톡 상담"]];
 function HM(){var h=S.home||{};h.show=h.show||{};return h}
 function shw(k){var s=HM().show;return s[k]!==false}
 function ht(k,d){var v=HM()[k];return v==null||v===""?d:v}
@@ -763,7 +765,8 @@ function home(){
   var pids=HM().popularIds||[],hot=pids.length?pids.map(product).filter(function(p){return p&&p.active}):act.filter(function(p){return p.img||PIMG[p.id]}).slice(0,4);
   var f=(HM().featuredId&&product(HM().featuredId))||hot[0]||S.products[0];
   var cats=(S.categories&&S.categories.length?S.categories:CATS.slice(1).map(function(n){return {name:n,short:CSHORT[n]||n}}));
-  var list=S.products.filter(function(p){return (U.cat==="전체"||(p.cats||[p.cat]).indexOf(U.cat)>-1)&&(!U.q||(p.name+p.desc+(p.cats||[p.cat]).join(" ")).toLowerCase().indexOf(U.q.toLowerCase())>-1)});
+  if(U.tag&&!tagName(U.tag))U.tag=null;
+  var list=S.products.filter(function(p){return p.active!==false&&(!U.tag||(p.tags||[]).indexOf(U.tag)>-1)&&(U.cat==="전체"||(p.cats||[p.cat]).indexOf(U.cat)>-1)&&(!U.q||(p.name+p.desc+(p.cats||[p.cat]).join(" ")).toLowerCase().indexOf(U.q.toLowerCase())>-1)});
   return (shw("quick")?'<div class="qbar"><div class="wrap"><div class="qrow">'+quickList().map(function(q,i){return '<button class="qchip'+(q.hl?' qinst':'')+'" data-act="qgo" data-i="'+i+'">'+(q.img?'<u><img src="'+esc(q.img)+'" alt="" loading="lazy"></u>':q.icon?'<u class="ic b'+(1+i%3)+'">'+esc(q.icon)+'</u>':'')+esc(q.label)+'</button>'}).join("")+'</div></div></div>':'')+
    '<section class="mainbn" id="search"><div class="bns">'+(function(){var L=activeBanners();if(BNI>=L.length)BNI=0;return L.map(function(x,i){var btn=x.linkType==="cat"?'<button class="bnb" data-act="cat" data-c="'+esc(x.link)+'">'+esc(x.button||"상품 보기")+'</button>':x.linkType==="product"?'<button class="bnb" data-act="book" data-id="'+esc(x.link)+'">'+esc(x.button||"상품 보기")+'</button>':'';return '<div class="bn'+(i===BNI?' on':'')+'" data-i="'+i+'"><img src="'+esc(x.img)+'" alt=""'+(i?' loading="lazy"':'')+'><div class="wrap">'+((x.linkType==="cat"&&CATS.indexOf(x.link)>0?x.link:x.badge)?'<span class="bk">'+esc(x.linkType==="cat"&&CATS.indexOf(x.link)>0?x.link:x.badge)+'</span>':'')+'<h1>'+esc(x.title1)+'<em>'+esc(x.title2)+'</em></h1>'+(x.sub?'<p>'+esc(x.sub)+'</p>':'')+btn+'</div></div>'}).join("")+(L.length>1?'<div class="bnc"><button data-act="bnprev" aria-label="이전">‹</button><span id="bnn">'+(BNI+1)+' / '+L.length+'</span><button data-act="bnnext" aria-label="다음">›</button></div>':'')})()+'</div>'+
    '<div class="wrap">'+
@@ -782,7 +785,7 @@ function home(){
     (ht("hotelsNote","")?'<p class="note" style="margin:14px 0 0;text-align:center">'+esc(ht("hotelsNote",""))+'</p>':'')+'</section>':'')+
    (shw("countries")?'<section class="blk" id="ctry"><div class="sh"><div><h2>'+esc(ht("countriesTitle","나라별 여행 정보"))+'</h2><p>'+esc(ht("countriesSub",""))+'</p></div></div>'+
     '<div class="ctrygrid">'+countryList().map(function(C){return '<button class="ctryc" data-act="country" data-c="'+esc(C.id)+'"><span class="fl">'+esc(C.flag)+'</span><b>'+esc(C.name.replace(/\(.*\)/,""))+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>':'')+
-      (shw("list")?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(ht("listTitle","전체 여행 상품"))+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
+      (shw("list")||U.tag?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(U.tag?tagName(U.tag):ht("listTitle","전체 여행 상품"))+(U.tag?' <button class="btn sm ghost" data-act="reset-search">전체 상품 보기</button>':'')+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
     '<div class="chips" role="group" aria-label="분류 필터">'+CATS.map(function(c){return '<button class="chip" data-act="cat" data-c="'+esc(c)+'" aria-pressed="'+(c===U.cat)+'">'+esc(c)+'</button>'}).join("")+'</div></div>'+
     (list.length?'<div class="grid g4 pl">'+list.map(card).join("")+'</div>':'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
    '</section>':'')+(shw("reviews")?reviewSection():'')+'</div>';
@@ -892,7 +895,7 @@ function admProducts(){
   return '<div class="panel"><div class="bar"><h3 style="margin:0">상품 '+list.length+'개</h3><span class="note" style="margin-left:10px">상품 사진 권장 1200 × 800px</span><span class="sp"></span><button class="btn sm pri" data-act="open" data-m="product" data-id="" data-c="'+esc(pc==="전체"?"":pc)+'">'+(pc==="전체"?"상품 추가":esc(pc)+"에 상품 추가")+'</button></div>'+
    '<div class="chips" style="margin:0 0 12px">'+CATS.map(function(c){var n=c==="전체"?S.products.length:S.products.filter(function(p){return (p.cats||[p.cat]).indexOf(c)>-1}).length;return '<button class="chip" data-act="pcat" data-c="'+esc(c)+'" aria-pressed="'+(c===pc)+'">'+esc(c)+' '+n+'</button>'}).join("")+'</div>'+
    '<div class="scroll"><table><thead><tr><th></th><th>상품</th><th>구간</th><th class="r">1인 가격</th><th class="r">잔여석</th><th>판매</th><th></th></tr></thead><tbody>'+
-   (list.length?list.map(function(p){return '<tr><td><div class="thumb">'+img(p)+'</div></td><td><b>'+esc(p.name)+'</b><div class="note">'+esc(ctags(p))+' · '+dur(p)+' · 적립 '+(earnLabel(p)||"없음")+'</div></td><td class="num">'+(p.from&&p.to?esc(p.from)+'→'+esc(p.to):'-')+'</td><td class="r num">'+(p.price>0?won(p.price)+'원':'미정')+'</td><td class="r num">'+(p.price>0?p.seats:'-')+'</td><td><span class="pill '+(p.active?"ok":"mute")+'" style="position:static">'+(p.active?"판매 중":"판매 중지")+'</span></td><td><div class="acts"><button class="btn sm" data-act="toggle-product" data-id="'+p.id+'">'+(p.active?"중지":"재개")+'</button><button class="btn sm" data-act="open" data-m="product" data-id="'+p.id+'">수정</button><button class="btn sm" data-act="open" data-m="banner" data-id="" data-p="'+p.id+'">배너로</button><button class="btn sm bad" data-act="open" data-m="product-del" data-id="'+p.id+'">삭제</button></div></td></tr>'}).join("")
+   (list.length?list.map(function(p){return '<tr><td><div class="thumb">'+img(p)+'</div></td><td><b>'+esc(p.name)+'</b><div class="note">'+esc(ctags(p))+' · '+dur(p)+' · 적립 '+(earnLabel(p)||"없음")+((p.tags||[]).filter(tagName).length?' · <b style="color:var(--blue)">'+esc((p.tags||[]).map(tagName).filter(Boolean).join(", "))+'</b>':'')+'</div></td><td class="num">'+(p.from&&p.to?esc(p.from)+'→'+esc(p.to):'-')+'</td><td class="r num">'+(p.price>0?won(p.price)+'원':'미정')+'</td><td class="r num">'+(p.price>0?p.seats:'-')+'</td><td><span class="pill '+(p.active?"ok":"mute")+'" style="position:static">'+(p.active?"판매 중":"판매 중지")+'</span></td><td><div class="acts"><button class="btn sm" data-act="toggle-product" data-id="'+p.id+'">'+(p.active?"중지":"재개")+'</button><button class="btn sm" data-act="open" data-m="product" data-id="'+p.id+'">수정</button><button class="btn sm" data-act="open" data-m="banner" data-id="" data-p="'+p.id+'">배너로</button><button class="btn sm bad" data-act="open" data-m="product-del" data-id="'+p.id+'">삭제</button></div></td></tr>'}).join("")
     :'<tr><td colspan="7" class="empty">이 카테고리에 상품이 없습니다.</td></tr>')+'</tbody></table></div></div>';
 }
 function admCats(){
@@ -930,7 +933,7 @@ function admContent(){
   var row=function(kind,i,n,thumb,main,sub){return '<tr><td><div class="acts">'+mvBtns(kind,i,n)+'</div></td><td>'+thumb+'</td><td><b>'+main+'</b><div class="note">'+sub+'</div></td><td><div class="acts"><button class="btn sm" data-act="open" data-m="c-'+kind+'" data-id="'+i+'">수정</button><button class="btn sm bad" data-act="cdel" data-k="'+kind+'" data-i="'+i+'">삭제</button></div></td></tr>'};
   var th=function(src,txt){return '<div class="thumb">'+(src?'<img src="'+esc(src)+'" alt="">':'<div class="noph"><i>'+esc(txt||"")+'</i></div>')+'</div>'};
   return '<div class="stack">'+
-   '<div class="panel"><div class="bar"><h3 style="margin:0">빠른 메뉴 줄 ('+Q.length+'개)</h3><span class="sp"></span><button class="btn sm pri" data-act="open" data-m="c-quick" data-id="">추가</button></div><p class="note" style="margin:0 0 10px">배너 위 둥근 버튼 줄입니다.</p><div class="scroll"><table><tbody>'+Q.map(function(q,i){return row("quick",i,Q.length,th(q.img,q.icon),esc(q.label),esc(qtoLabel(q.to)))}).join("")+'</tbody></table></div></div>'+
+   '<div class="panel"><div class="bar"><h3 style="margin:0">빠른 메뉴 줄 ('+Q.length+'개)</h3><span class="sp"></span><button class="btn sm pri" data-act="open" data-m="c-quick" data-id="">추가</button></div><p class="note" style="margin:0 0 10px">배너 위 둥근 버튼 줄입니다. "누르면"을 <b>체크한 상품 모아보기</b>로 두면, 상품 수정 창에 이 버튼 이름의 체크란이 생깁니다.</p><div class="scroll"><table><tbody>'+Q.map(function(q,i){return row("quick",i,Q.length,th(q.img,q.icon),esc(q.label),esc(qtoLabel(q.to)))}).join("")+'</tbody></table></div></div>'+
    '<div class="panel"><div class="bar"><h3 style="margin:0">호텔 카드 ('+H.length+'개)</h3><span class="sp"></span><button class="btn sm pri" data-act="open" data-m="c-hotel" data-id="">추가</button></div><div class="scroll"><table><tbody>'+H.map(function(h,i){var c=h.country&&countryOf(h.country);return row("hotel",i,H.length,th(h.img,h.area),esc(h.title),esc((h.star||"")+" · "+(h.price||"")+" · "+(c?"누르면 "+c.name+" 여행정보":"누르면 상담")))}).join("")+'</tbody></table></div></div>'+
    '<div class="panel"><div class="bar"><h3 style="margin:0">나라별 여행정보 ('+C.length+'개)</h3><span class="sp"></span><button class="btn sm pri" data-act="open" data-m="c-country" data-id="">나라 추가</button></div><div class="scroll"><table><tbody>'+C.map(function(c,i){return row("country",i,C.length,'<span style="font-size:28px">'+esc(c.flag)+'</span>',esc(c.name),"명소 "+c.spots.length+"곳 · 주의사항 "+c.tips.length+"개 · 긴급연락처 "+c.emg.length+"개")}).join("")+'</tbody></table></div></div>'+
    '</div>';
@@ -1024,6 +1027,7 @@ function openModal(kind,id){
     return modal('<h2>'+(id?"상품 수정":"상품 추가")+'</h2><p class="sub">저장하면 홈 화면 상품 목록에 바로 반영됩니다.</p><form data-form="product" data-id="'+(id||"")+'" class="fgrid">'+
      '<label class="field full" for="pr-name"><span>상품명</span><input class="inp" id="pr-name" name="name" value="'+esc(q.name)+'"></label>'+
      '<div class="field full"><span>카테고리 (여러 개 고를 수 있습니다)</span><div class="ckrow">'+CATS.slice(1).map(function(c){return '<label class="ck"><input type="checkbox" name="cats" value="'+esc(c)+'"'+(qc.indexOf(c)>-1?' checked':'')+'> '+esc(c)+'</label>'}).join("")+'</div></div>'+
+     (tagList().length?'<div class="field full"><span>진열 위치 (체크한 곳에 이 상품이 나옵니다)</span><div class="ckrow">'+tagList().map(function(t){return '<label class="ck"><input type="checkbox" name="tags" value="'+esc(t.id)+'"'+((q.tags||[]).indexOf(t.id)>-1?' checked':'')+'> '+esc(t.label)+'</label>'}).join("")+'</div></div>':'')+
      '<div class="field full"><span>상품 사진</span><div class="upl"><div class="thumb lg" id="pr-prev">'+img(q)+'</div><div><input type="hidden" name="img" value="'+esc(q.img||"")+'"><label class="btn sm">사진 고르기<input type="file" accept="image/*" data-up="pr" hidden></label> <button type="button" class="btn sm ghost" data-act="img-clear" data-t="pr">사진 빼기</button><p class="note" id="pr-upn" style="margin:6px 0 0"><b>권장 크기 1200 × 800px</b> (가로 3:2), JPG·PNG, 6MB 이하.<br>글자·로고가 없는 사진을 쓰세요. 큰 사진은 자동으로 줄여서 저장됩니다.</p></div></div></div>'+
      '<label class="field" for="pr-from"><span>출발 공항 코드 (선택)</span><input class="inp num" id="pr-from" name="from" maxlength="3" value="'+esc(q.from)+'"></label><label class="field" for="pr-to"><span>도착 공항 코드 (선택)</span><input class="inp num" id="pr-to" name="to" maxlength="3" value="'+esc(q.to)+'"></label>'+
      '<label class="field" for="pr-nights"><span>숙박 (박)</span><input class="inp num" id="pr-nights" name="nights" inputmode="numeric" value="'+q.nights+'"></label><label class="field" for="pr-days"><span>일정 (일)</span><input class="inp num" id="pr-days" name="days" inputmode="numeric" value="'+q.days+'"></label>'+
@@ -1129,7 +1133,7 @@ var forms={
   product:function(f){
     var cs=[].slice.call(f.querySelectorAll('input[name="cats"]:checked')).map(function(x){return x.value});
     if(!cs.length)return err("pr-err","카테고리를 하나 이상 골라 주세요.");
-    api("product-save",{id:f.dataset.id||"",name:f.name.value,cat:cs[0],cats:cs,img:f.img.value,earnType:f.earnType.value,earnValue:f.earnValue.value,scene:"beach",from:f.from.value,to:f.to.value,nights:f.nights.value,days:f.days.value,price:f.price.value,seats:f.seats.value,desc:f.desc.value}).then(function(r){done(r,"pr-err",function(){closeModal();render()})});
+    api("product-save",{id:f.dataset.id||"",name:f.name.value,cat:cs[0],cats:cs,tags:[].slice.call(f.querySelectorAll('input[name="tags"]:checked')).map(function(x){return x.value}),img:f.img.value,earnType:f.earnType.value,earnValue:f.earnValue.value,scene:"beach",from:f.from.value,to:f.to.value,nights:f.nights.value,days:f.days.value,price:f.price.value,seats:f.seats.value,desc:f.desc.value}).then(function(r){done(r,"pr-err",function(){closeModal();render()})});
   },
   review:function(f){
     var t=f.text.value.trim(),ml=(S.limits&&S.limits.minLen)||20;if(t.length<ml)return err("rv-err","후기는 "+ml+"자 이상 써 주세요. (지금 "+t.length+"자)");
@@ -1154,7 +1158,7 @@ var forms={
   },
   "member-edit":function(f){api("member-edit",{id:f.dataset.id,name:f.name.value,email:f.email.value,phone:f.phone.value}).then(function(r){done(r,"me-err",function(){closeModal();render()})})},
   "member-pw":function(f){api("member-pw",{id:f.dataset.id,pw:f.pw.value}).then(function(r){done(r,"mp-err",closeModal)})},
-  "c-quick":function(f0){var f=f0.elements;var L=clist("quick"),i=f0.dataset.id,v={label:f.label.value.trim(),icon:f.icon.value.trim(),img:f.img_cq.value,to:f.to.value,hl:f.hl.checked};if(!v.label)return err("cq-err","버튼 글자를 입력해 주세요.");if(i==="")L.push(v);else L[+i]=v;csave("quick",L,"cq-err",closeModal)},
+  "c-quick":function(f0){var f=f0.elements;var L=clist("quick"),i=f0.dataset.id,v={id:i===""?"q"+Date.now().toString(36):(L[+i].id||"q"+i),label:f.label.value.trim(),icon:f.icon.value.trim(),img:f.img_cq.value,to:f.to.value,hl:f.hl.checked};if(!v.label)return err("cq-err","버튼 글자를 입력해 주세요.");if(i==="")L.push(v);else L[+i]=v;csave("quick",L,"cq-err",closeModal)},
   "c-hotel":function(f0){var f=f0.elements;var L=clist("hotel"),i=f0.dataset.id,v={id:i===""?"h"+Date.now().toString(36):L[+i].id,title:f.title.value.trim(),area:f.area.value.trim(),star:f.star.value.trim(),img:f.img_ch.value,price:f.price.value.trim(),more:f.more.value.trim(),country:f.country.value};if(!v.title)return err("ch-err","카드 제목을 입력해 주세요.");if(i==="")L.push(v);else L[+i]=v;csave("hotel",L,"ch-err",closeModal)},
   "c-country":function(f0){var f=f0.elements;var L=clist("country"),i=f0.dataset.id,spots=[].slice.call(f0.querySelectorAll("[data-sp]")).map(function(r){return {name:r.querySelector('[name="spn"]').value.trim(),desc:r.querySelector('[name="spd"]').value.trim(),img:r.querySelector("[data-img]").value}}).filter(function(s){return s.name});
     var v={id:i===""?"c"+Date.now().toString(36):L[+i].id,name:f.name.value.trim(),flag:f.flag.value.trim(),alert:f.alert.value.trim(),spots:spots,tips:f.tips.value.split("\n").map(function(s){return s.trim()}).filter(Boolean),emg:f.emg.value.split("\n").map(function(s){var p=s.split("|");return {label:(p[0]||"").trim(),num:(p.slice(1).join("|")||"").trim()}}).filter(function(e){return e.label})};
@@ -1170,7 +1174,7 @@ var forms={
 var acts={
   go:function(d){go(d.v)},
   quick:function(d){U.view="home";render();scrollToId(d.to)},
-  qgo:function(d){var q=quickList()[+d.i];if(!q)return;var t=q.to||"";if(t==="sec:perks"){go("mypage")}else if(t.indexOf("sec:")===0){U.view="home";render();scrollToId(t.slice(4))}else if(t.indexOf("cat:")===0){U.cat=t.slice(4);U.view="home";render();scrollToId("list")}else if(t.indexOf("product:")===0){acts.book({id:t.slice(8)})}else if(t==="install")acts.install();else if(t==="kakao")kakao();else if(t==="mypage")go("mypage")},
+  qgo:function(d){var q=quickList()[+d.i];if(!q)return;var t=q.to||"";if(t==="tag"){U.tag=q.id;U.cat="전체";U.q="";U.view="home";render();scrollToId("list");return}if(t==="sec:perks"){go("mypage")}else if(t.indexOf("sec:")===0){U.view="home";render();scrollToId(t.slice(4))}else if(t.indexOf("cat:")===0){U.cat=t.slice(4);U.view="home";render();scrollToId("list")}else if(t.indexOf("product:")===0){acts.book({id:t.slice(8)})}else if(t==="install")acts.install();else if(t==="kakao")kakao();else if(t==="mypage")go("mypage")},
   stab:function(d){U.stab=d.t;render();scrollToId("search")},
   ftrip:function(d){U.ftrip=d.t;render();scrollToId("search")},
   country:function(d){U.ccur=d.c;U.ctab="tour";openModal("country",d.c)},
@@ -1187,8 +1191,8 @@ var acts={
   mnav:function(d){if(d.v==="list"){U.view="home";render();scrollToId("list")}else if(d.v==="account"){me()?go("mypage"):openModal("login")}else go(d.v)},
   "go-list":function(){U.view="home";render();scrollToId("list")},
   scroll:function(d){scrollToId(d.to)},
-  cat:function(d){U.cat=d.c;render();scrollToId("list")},
-  "reset-search":function(){U.q="";U.cat="전체";render();scrollToId("list")},
+  cat:function(d){U.tag=null;U.cat=d.c;render();scrollToId("list")},
+  "reset-search":function(){U.q="";U.cat="전체";U.tag=null;render();scrollToId("list")},
   open:function(d){U.mc=d.c||"";U.mp=d.p||"";openModal(d.m,d.id)},
   close:closeModal,
   logout:function(){api("logout").then(function(r){done(r,null,function(){go("home")})})},
