@@ -77,6 +77,13 @@ def defaults(st):
                 if b.get("title2") == bd and bd not in names and bd != "효도여행": b["title2"] = new
                 b["link"], b["badge"] = new, new
         st["catfix2"] = True
+    if not st.get("seatfix1"):
+        for b in st.get("bookings", []):
+            if b.get("status") == "pending" and "seatsTaken" not in b:
+                p = next((x for x in st.get("products", []) if x["id"] == b["productId"]), None)
+                if p: p["seats"] = p.get("seats", 0) + b["people"]
+                b["seatsTaken"] = False
+        st["seatfix1"] = True
     st.setdefault("limits", dict(DEFAULT_LIMITS))
     for k, v in DEFAULT_LIMITS.items():
         st["limits"].setdefault(k, v)
@@ -310,8 +317,8 @@ def a_booking(me, d, ctx):
     earn = p_earn(p, pay, n)
     b = {"id": uid("b"), "memberId": me["id"], "productId": p["id"], "people": n, "total": total, "used": use,
          "pay": pay, "earned": earn, "status": "pending", "at": now_ms(), "depart": depart}
+    b["seatsTaken"] = False
     S["bookings"].append(b)
-    p["seats"] -= n
     if use > 0: add_ledger(me["id"], "use", -use, "예약 시 사용", bookingId=b["id"])
     return b, "예약 신청이 접수되었습니다. 담당자 확인 후 확정되면 %sP가 적립됩니다" % won(earn)
 
@@ -321,6 +328,11 @@ def a_booking_confirm(me, d, ctx):
     b = next((x for x in S["bookings"] if x["id"] == d.get("id")), None)
     if not b: raise Err("예약을 찾을 수 없습니다.")
     if b["status"] != "pending": raise Err("확정 대기 중인 예약만 확정할 수 있습니다.")
+    p = product(b["productId"])
+    if p and b.get("seatsTaken") is False:
+        if p["seats"] < b["people"]: raise Err("잔여석이 %d석뿐이라 %d명 예약을 확정할 수 없습니다. 상품의 잔여석을 늘리거나 예약을 취소하세요." % (p["seats"], b["people"]))
+        p["seats"] -= b["people"]
+        b["seatsTaken"] = True
     b["status"], b["confirmedAt"] = "confirmed", now_ms()
     if b["earned"] > 0 and not b.get("earnPaid"):
         p = product(b["productId"])
@@ -343,7 +355,9 @@ def a_booking_cancel(me, d, ctx):
     if b["used"] > 0: add_ledger(b["memberId"], "refund", b["used"], "예약 취소로 사용 포인트 복원", bookingId=b["id"])
     if revoke > 0: add_ledger(b["memberId"], "revoke", -revoke, "예약 취소로 적립 포인트 회수", bookingId=b["id"])
     p = product(b["productId"])
-    if p: p["seats"] += b["people"]
+    if p and b.get("seatsTaken", True):
+        p["seats"] += b["people"]
+    b["seatsTaken"] = False
     if me["role"] == "admin":
         x = member(b["memberId"])
         audit("%s 회원 예약 취소 처리, 사용 %sP 복원, 적립 %sP 회수" % (x["name"] if x else "-", won(b["used"]), won(b["earned"])))
