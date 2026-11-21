@@ -39,7 +39,7 @@ DEFAULT_HOME = {
     "featuredTitle": "베스트여행사 추천 여행", "featuredId": "",
     "hotelsTitle": "전 세계 5성급 호텔", "hotelsSub": "인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.",
     "countriesTitle": "나라별 여행 정보", "countriesSub": "관광 명소부터 안전정보까지 한눈에 확인하세요.",
-    "listTitle": "전체 여행 상품", "reviewsTitle": "고객 여행 후기", "reviewsSub": "베스트여행사와 함께 다녀온 회원님들의 이야기입니다."}
+    "listTitle": "전체 여행 상품", "hotelsNote": "", "reviewsTitle": "고객 여행 후기", "reviewsSub": "베스트여행사와 함께 다녀온 회원님들의 이야기입니다."}
 DEFAULT_LIMITS = {"gapMin": 10, "perDay": 3, "pending": 2, "minLen": 20}
 
 
@@ -175,6 +175,7 @@ def view(me):
     pub_reviews.sort(key=lambda r: -r["at"])
     out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:60], "meId": None,
            "site": S["site"], "categories": S["categories"], "banners": S["banners"], "home": S["home"], "limits": S["limits"],
+           "hotels": S.get("hotels"), "countries": S.get("countries"), "quick": S.get("quick"),
            "members": [], "bookings": [], "ledger": [], "audit": [], "reviews": []}
     if not me:
         return out
@@ -704,7 +705,42 @@ def a_member_pw(me, d, ctx):
     return None, "비밀번호를 바꿨습니다. 회원에게 새 비밀번호를 알려 주세요"
 
 
+def _txt(v, n=200):
+    return re.sub(r"[\x00-\x1f]", " ", str(v if v is not None else "")).strip()[:n]
+
+
+def a_content_save(me, d, ctx):
+    need_admin(me)
+    key, L = d.get("key"), d.get("value")
+    if key not in ("hotels", "countries", "quick") or not isinstance(L, list) or len(L) > 40:
+        raise Err("저장 형식이 올바르지 않습니다.")
+    out = []
+    for x in L:
+        if not isinstance(x, dict): continue
+        if key == "quick":
+            to = _txt(x.get("to"), 80)
+            if not re.fullmatch(r"(sec:(hot|list|perks|hotels|ctry|reviews)|mypage|install|kakao|cat:.{1,20}|product:[\w\-]{1,40})", to): to = "sec:list"
+            it = {"label": _txt(x.get("label"), 20), "icon": _txt(x.get("icon"), 4), "img": clean_img(x.get("img")), "to": to, "hl": bool(x.get("hl"))}
+            if it["label"]: out.append(it)
+        elif key == "hotels":
+            it = {k: _txt(x.get(k), 40) for k in ("id", "title", "area", "star", "price", "more", "country")}
+            it["img"] = clean_img(x.get("img")); it["id"] = it["id"] or uid("h")
+            if it["title"]: out.append(it)
+        else:
+            spots = [{"name": _txt(sp.get("name"), 40), "desc": _txt(sp.get("desc"), 150), "img": clean_img(sp.get("img"))}
+                     for sp in (x.get("spots") or [])[:20] if isinstance(sp, dict) and _txt(sp.get("name"))]
+            emg = [{"label": _txt(e.get("label"), 40), "num": _txt(e.get("num"), 40)} for e in (x.get("emg") or [])[:20] if isinstance(e, dict) and _txt(e.get("label"))]
+            tips = [_txt(t, 200) for t in (x.get("tips") or [])[:20] if _txt(t)]
+            it = {"id": _txt(x.get("id"), 30) or uid("c"), "name": _txt(x.get("name"), 20), "flag": _txt(x.get("flag"), 8),
+                  "alert": _txt(x.get("alert"), 150), "spots": spots, "tips": tips, "emg": emg}
+            if it["name"]: out.append(it)
+    S[key] = out
+    audit({"hotels": "호텔 카드", "countries": "나라별 여행정보", "quick": "빠른 메뉴"}[key] + " 수정")
+    return None, "저장했습니다"
+
+
 ACTIONS = {
+    "content-save": a_content_save,
     "home-save": a_home_save, "rules-save": a_rules_save, "member-edit": a_member_edit, "member-pw": a_member_pw,
     "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
     "banner-save": a_banner_save, "banner-move": a_banner_move, "banner-toggle": a_banner_toggle, "banner-delete": a_banner_delete,
