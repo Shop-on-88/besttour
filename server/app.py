@@ -53,6 +53,20 @@ def defaults(st):
     for k, v in RULE.items():
         st["rule"].setdefault(k, v)
     RULE.update(st["rule"])
+    # 카테고리 이름 통일: 배너가 없어진 카테고리를 가리키면 지금 카테고리로 바꿈
+    if not st.get("catfix1") and st.get("categories"):
+        names = [c["name"] for c in st["categories"]]
+        old_map = {"패키지여행": "해외여행", "해외 유명관광명소": "해외여행", "신혼여행": "허니문", "효도여행": "해외여행"}
+        for b in st.get("banners", []):
+            if b.get("linkType") == "cat" and b.get("link") not in names:
+                new = old_map.get(b.get("link"))
+                new = new if new in names else names[0]
+                if b.get("badge") == b.get("link"): b["badge"] = new
+                if b.get("title2") == b.get("link"): b["title2"] = new
+                b["link"] = new
+        for c in st["categories"]:
+            c["short"] = c["name"]
+        st["catfix1"] = True
     st.setdefault("limits", dict(DEFAULT_LIMITS))
     for k, v in DEFAULT_LIMITS.items():
         st["limits"].setdefault(k, v)
@@ -538,7 +552,7 @@ def find_cat(name):
 def a_cat_save(me, d, ctx):
     need_admin(me)
     old, name = (d.get("old") or "").strip(), re.sub(r"\s+", " ", (d.get("name") or "")).strip()
-    short = (d.get("short") or "").strip()[:10] or name[:6]
+    short = name
     img = clean_img(d.get("img"))
     if not 1 <= len(name) <= 20: raise Err("카테고리 이름을 1~20자로 입력해 주세요.")
     if name == "전체": raise Err("'전체'는 카테고리 이름으로 쓸 수 없습니다.")
