@@ -469,12 +469,28 @@ textarea.inp{resize:vertical;min-height:96px;font:inherit}
   .cats.c5 .catb{border-left:1px solid #E2E8F0;border-top:1px solid #E2E8F0;margin:-1px 0 0 -1px;font-size:13.5px;padding:13px 4px}
   .card .price{font-size:15.5px;font-family:var(--f-body)}.card .price small{font-size:11px}
   .card .earn{font-size:11.5px}.card h3{font-size:15px;line-height:1.35}
-  .card .foot{flex-direction:column;align-items:flex-start}
   .sh{flex-wrap:wrap;gap:6px}.sh .more{margin-left:auto}
   .bigcard h3{font-size:24px}.bigcard p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .brow b{font-size:22px}
 }
 .bigcard p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* 상품 카드 공통 정리 */
+.card .art{aspect-ratio:3/2}
+.card .price{color:var(--ink)}
+.card .price.tbd{color:var(--mute)}
+.card .foot{align-items:flex-end}
+@media (max-width:560px){
+  .grid.g4.pl{grid-template-columns:1fr;gap:12px}
+  .grid.g4.pl .card{flex-direction:row;border-radius:14px;min-height:0}
+  .grid.g4.pl .card .art{width:40%;flex:none;aspect-ratio:auto;min-height:128px}
+  .grid.g4.pl .card .art img,.grid.g4.pl .card .art .noph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .grid.g4.pl .card .body{flex:1;min-width:0;padding:11px 12px 12px;gap:4px}
+  .grid.g4.pl .card .tag{transform:scale(.88);transform-origin:top left}
+  .grid.g4.pl .card .cdesc{-webkit-line-clamp:2;font-size:12px}
+  .grid.g4.pl .card .foot{flex-direction:column;align-items:flex-start;gap:4px;margin-top:auto}
+  .grid.g4.pl .card .earn{margin-left:0}
+  .grid.g4:not(.pl){grid-template-columns:1fr 1fr;gap:10px}
+}
 </style>
 </head>
 <body>
@@ -752,7 +768,7 @@ function home(){
      searchForm()+'</div><p class="lead bnlead">'+(m?esc(m.name)+'님, 예약할 때마다 결제 금액의 '+(RULE.rate*100)+'%가 포인트로 쌓입니다':'가입 즉시 '+won(RULE.signup)+'P, 예약할 때마다 결제 금액의 '+(RULE.rate*100)+'%가 쌓입니다')+'</p></div></section>'+
    '<div class="wrap"><div class="cats c5" style="grid-template-columns:repeat('+Math.max(1,cats.length)+',1fr)">'+cats.map(function(c){return '<button class="catb" data-act="cat" data-c="'+esc(c.name)+'">'+esc(c.name)+'</button>'}).join("")+'</div>'+
    (shw("popular")&&hot.length?'<section class="blk" id="hot"><div class="sh"><div><h2>'+esc(ht("popularTitle","인기 여행지"))+'</h2><p>'+esc(ht("popularSub",""))+'</p></div><button class="more" data-act="scroll" data-to="list">전체 보기</button></div>'+
-    '<div class="grid g4">'+hot.map(card).join("")+'</div></section>':'')+'</div>'+
+    '<div class="grid g4 pl">'+hot.map(card).join("")+'</div></section>':'')+'</div>'+
    (shw("featured")&&f?'<section class="feat"><div class="wrap"><div class="sh light"><div><span class="eyebrow">RECOMMEND · 추천 여행지</span><h2>'+esc(ht("featuredTitle","추천 여행"))+'</h2></div></div>'+
      '<button class="bigcard" data-act="book" data-id="'+f.id+'"><div class="bg">'+img(f)+'</div><div class="over"><span class="n">추천</span><h3>'+esc(f.name)+'</h3><p>'+esc(f.desc)+'</p>'+
      '<div class="brow">'+(f.price>0?'<b class="num">'+won(f.price)+'<i>원 / 1인</i></b><span class="ern">+'+won(pEarn(f,f.price,1))+'P 적립</span>':'<b>가격 준비중</b><span class="ern">상담 문의</span>')+'</div></div></button></div></section>':'')+
@@ -766,7 +782,7 @@ function home(){
     '<div class="ctrygrid">'+countryList().map(function(C){return '<button class="ctryc" data-act="country" data-c="'+esc(C.id)+'"><span class="fl">'+esc(C.flag)+'</span><b>'+esc(C.name.replace(/\(.*\)/,""))+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>':'')+
       (shw("list")?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(ht("listTitle","전체 여행 상품"))+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
     '<div class="chips" role="group" aria-label="분류 필터">'+CATS.map(function(c){return '<button class="chip" data-act="cat" data-c="'+esc(c)+'" aria-pressed="'+(c===U.cat)+'">'+esc(c)+'</button>'}).join("")+'</div></div>'+
-    (list.length?'<div class="grid g4">'+list.map(card).join("")+'</div>':'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
+    (list.length?'<div class="grid g4 pl">'+list.map(card).join("")+'</div>':'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
    '</section>':'')+(shw("reviews")?reviewSection():'')+'</div>';
 }
 
