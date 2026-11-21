@@ -902,6 +902,13 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, {"ok": True})
         self.send(404, {"ok": False, "err": "not found"})
 
+    def do_HEAD(self):
+        mm = re.fullmatch(r"/api/(health|img/[\w\-]+\.(jpg|png|webp))", self.path.split("?")[0])
+        ok = bool(mm) and (mm.group(1) == "health" or os.path.isfile(os.path.join(UPLOADS, mm.group(1)[4:])))
+        self.send_response(200 if ok else 404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_POST(self):
         m = re.fullmatch(r"/api/([a-z\-]+)", self.path.split("?")[0])
         fn = ACTIONS.get(m.group(1)) if m else None
