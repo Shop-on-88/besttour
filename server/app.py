@@ -40,6 +40,7 @@ DEFAULT_HOME = {
     "hotelsTitle": "전 세계 5성급 호텔", "hotelsSub": "인터넷 최저가로 비교해 드립니다. 원하는 호텔을 상담으로 바로 문의하세요.",
     "countriesTitle": "나라별 여행 정보", "countriesSub": "관광 명소부터 안전정보까지 한눈에 확인하세요.",
     "listTitle": "전체 여행 상품", "hotelsNote": "", "reviewsTitle": "고객 여행 후기", "reviewsSub": "베스트여행사와 함께 다녀온 회원님들의 이야기입니다."}
+DEFAULT_TIERS = [{"name": "실버", "min": 0, "rate": 2}, {"name": "골드", "min": 3000000, "rate": 3}, {"name": "VIP", "min": 10000000, "rate": 5}]
 DEFAULT_LIMITS = {"gapMin": 10, "perDay": 3, "pending": 2, "minLen": 20}
 
 
@@ -86,6 +87,7 @@ def defaults(st):
         st["seatfix1"] = True
     if st.get("home", {}).get("popularSub") == "많이 찾는 지역부터 둘러보세요. 가격은 상담으로 안내해 드립니다.":
         st["home"]["popularSub"] = "지금 가장 많이 찾는 여행 상품을 모았습니다."
+    st.setdefault("tiers", [dict(t) for t in DEFAULT_TIERS])
     st.setdefault("limits", dict(DEFAULT_LIMITS))
     for k, v in DEFAULT_LIMITS.items():
         st["limits"].setdefault(k, v)
@@ -207,7 +209,7 @@ def view(me):
                    for r in S["reviews"] if r["status"] == "approved"]
     pub_reviews.sort(key=lambda r: -r["at"])
     out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:300], "meId": None,
-           "site": S["site"], "categories": S["categories"], "banners": S["banners"], "home": S["home"], "limits": S["limits"],
+           "site": S["site"], "categories": S["categories"], "banners": S["banners"], "home": S["home"], "limits": S["limits"], "tiers": S["tiers"],
            "hotels": S.get("hotels"), "countries": S.get("countries"), "quick": S.get("quick"),
            "members": [], "bookings": [], "ledger": [], "audit": [], "reviews": []}
     if not me:
@@ -292,36 +294,59 @@ def a_password(me, d, ctx):
     return me, "비밀번호를 바꿨습니다"
 
 
-def p_earn(p, pay, people):
+def spent(mid):
+    return sum(b["pay"] for b in S["bookings"] if b["memberId"] == mid and b["status"] == "confirmed" and not b.get("pointOnly"))
+
+
+def tier_of(mid):
+    T = sorted(S.get("tiers") or [], key=lambda t: t["min"])
+    cur = None
+    for t in T:
+        if spent(mid) >= t["min"]: cur = t
+    return cur
+
+
+def p_earn(p, pay, people, mid=None):
+    if p.get("pointOnly"): return 0
     t, v = p.get("earnType") or "default", int(p.get("earnValue") or 0)
     if t == "none": return 0
     if t == "fixed": return v * people
     if t == "rate": return int(pay * v / 100)
-    return int(pay * RULE["rate"])
+    tr = tier_of(mid) if mid else None
+    return int(pay * (tr["rate"] / 100.0 if tr else RULE["rate"]))
 
 
 def a_booking(me, d, ctx):
     need_member(me)
     p = product(d.get("productId"))
     if not p or not p.get("active") or not p.get("price"): raise Err("예약할 수 없는 상품입니다.")
-    n, use, depart, total = to_int(d.get("people")), to_int(d.get("use") or 0), to_int(d.get("depart") or 0), to_int(d.get("total"))
+    n, use, depart = to_int(d.get("people")), to_int(d.get("use") or 0), to_int(d.get("depart") or 0)
+    opts_all = p.get("options") or []
+    sel = sorted({to_int(i) for i in (d.get("opts") or []) if 0 <= to_int(i) < len(opts_all)})
+    chosen = [opts_all[i] for i in sel]
+    total = (p["price"] + sum(o["price"] for o in chosen)) * n
     bal = balance(me["id"])
+    if p.get("pointOnly"): use = total
     if not depart: raise Err("출발 날짜를 먼저 선택해 주세요.")
     if n < 1 or n > 20: raise Err("인원을 확인해 주세요.")
     if n > p["seats"]: raise Err("잔여석이 %d석뿐입니다. 인원을 줄여 주세요." % p["seats"])
-    if total < p["price"] * n * 0.5 or total > p["price"] * n * 2: raise Err("상품 금액을 다시 확인해 주세요.")
     if use < 0: raise Err("사용할 포인트를 숫자로 입력해 주세요.")
+    if p.get("pointOnly") and use > bal: raise Err("포인트가 부족합니다. %sP가 필요하고 보유 포인트는 %sP입니다." % (won(total), won(bal)))
     if use > bal: raise Err("보유 포인트(%sP)보다 많이 쓸 수 없습니다." % won(bal))
-    if 0 < use < RULE["minUse"]: raise Err("포인트는 %sP 이상부터 쓸 수 있습니다." % won(RULE["minUse"]))
-    cap = int(total * RULE["maxRatio"])
-    if use > cap: raise Err("이 예약에서는 최대 %sP까지 쓸 수 있습니다." % won(cap))
+    if not p.get("pointOnly"):
+        if 0 < use < RULE["minUse"]: raise Err("포인트는 %sP 이상부터 쓸 수 있습니다." % won(RULE["minUse"]))
+        cap = int(total * RULE["maxRatio"])
+        if use > cap: raise Err("이 예약에서는 최대 %sP까지 쓸 수 있습니다." % won(cap))
     pay = total - use
-    earn = p_earn(p, pay, n)
+    earn = p_earn(p, pay, n, me["id"])
     b = {"id": uid("b"), "memberId": me["id"], "productId": p["id"], "people": n, "total": total, "used": use,
-         "pay": pay, "earned": earn, "status": "pending", "at": now_ms(), "depart": depart}
+         "pay": pay, "earned": earn, "status": "pending", "at": now_ms(), "depart": depart,
+         "opts": [o["name"] for o in chosen], "pointOnly": bool(p.get("pointOnly"))}
     b["seatsTaken"] = False
     S["bookings"].append(b)
     if use > 0: add_ledger(me["id"], "use", -use, "예약 시 사용", bookingId=b["id"])
+    if p.get("pointOnly"):
+        return b, "신청이 접수되었습니다. %sP가 사용되었고, 담당자 확인 후 확정됩니다" % won(use)
     return b, "예약 신청이 접수되었습니다. 담당자 확인 후 확정되면 %sP가 적립됩니다" % won(earn)
 
 
@@ -515,6 +540,9 @@ def a_product_save(me, d, ctx):
     v = {"name": (d.get("name") or "").strip(), "cat": d.get("cat") or "패키지여행", "scene": d.get("scene") or "beach",
          "from": (d.get("from") or "").strip().upper(), "to": (d.get("to") or "").strip().upper(), "desc": (d.get("desc") or "").strip(),
          "img": clean_img(d.get("img")),
+         "pointOnly": bool(d.get("pointOnly")),
+         "options": [{"name": _txt(o.get("name"), 40), "price": max(0, min(100000000, int(str(o.get("price") or 0).replace(",", "") or 0) if str(o.get("price") or 0).replace(",", "").isdigit() else 0))}
+                     for o in (d.get("options") or [])[:15] if isinstance(o, dict) and _txt(o.get("name"))],
          "tags": [t for t in (d.get("tags") or []) if isinstance(t, str) and re.fullmatch(r"[\w\-]{1,30}", t)][:20],
          "earnType": d.get("earnType") if d.get("earnType") in ("default", "rate", "fixed", "none") else "default"}
     try:
@@ -752,6 +780,26 @@ def a_rules_save(me, d, ctx):
     return None, "포인트 규칙을 저장했습니다"
 
 
+def a_tiers_save(me, d, ctx):
+    need_admin(me)
+    L = []
+    for t in (d.get("tiers") or [])[:8]:
+        name = _txt(t.get("name"), 12)
+        if not name: continue
+        try:
+            mn, rt = to_int(t.get("min") or 0), to_int(t.get("rate") or 0)
+        except Err:
+            raise Err("등급 기준 금액과 적립률은 숫자로 입력해 주세요.")
+        if mn < 0 or not 0 <= rt <= 50: raise Err("적립률은 0~50% 사이로 입력해 주세요.")
+        L.append({"name": name, "min": mn, "rate": rt})
+    if not L: raise Err("등급을 하나 이상 입력해 주세요.")
+    L.sort(key=lambda t: t["min"])
+    L[0]["min"] = 0
+    S["tiers"] = L
+    audit("회원 등급 변경: " + ", ".join("%s(%s원~ %d%%)" % (t["name"], won(t["min"]), t["rate"]) for t in L))
+    return None, "회원 등급을 저장했습니다"
+
+
 def a_member_edit(me, d, ctx):
     need_admin(me)
     x = member(d.get("id"))
@@ -816,7 +864,7 @@ def a_content_save(me, d, ctx):
 
 
 ACTIONS = {
-    "content-save": a_content_save,
+    "content-save": a_content_save, "tiers-save": a_tiers_save,
     "home-save": a_home_save, "rules-save": a_rules_save, "member-edit": a_member_edit, "member-pw": a_member_pw,
     "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
     "banner-save": a_banner_save, "banner-move": a_banner_move, "banner-toggle": a_banner_toggle, "banner-delete": a_banner_delete,
