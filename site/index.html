@@ -531,6 +531,14 @@ section[id]{scroll-margin-top:72px}
   .chip{font-size:15px}
   .bigcard h3{font-size:26px}.brow b{font-size:24px}
 }
+/* 후기 · 포인트 표 정리 */
+.rvstat{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--ink)}
+.prv{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}.prv h3{font-size:17px;margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.prv .rvc p{-webkit-line-clamp:unset;display:block}
+.scroll table{min-width:620px}
+.scroll td.num,.scroll td.r,.scroll th{white-space:nowrap}
+.tile b{font-size:clamp(17px,2.2vw,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:560px){.tile b{font-size:clamp(15px,4.6vw,20px)}.tile{padding:12px}.tiles{gap:8px}}
 </style>
 </head>
 <body>
@@ -651,7 +659,7 @@ function bnGo(i){var el=document.querySelectorAll(".mainbn .bn");if(!el.length)r
 var BNT=setInterval(function(){if(!document.hidden&&!document.querySelector("#layer .modal"))bnGo(BNI+1)},5500);
 var INST=null;
 try{window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();INST=e});if("serviceWorker" in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(function(){})}catch(e){}
-var U={view:"home",cat:"전체",q:"",tab:"dash",sel:null,mq:"",bkDate:null,bkPeople:2,bkUse:0,stab:"pkg",ftrip:"rt",ctab:"tour",ccur:null};
+var U={view:"home",cat:"전체",q:"",tab:"dash",sel:null,mq:"",bkDate:null,bkPeople:1,bkUse:0,stab:"pkg",ftrip:"rt",ctab:"tour",ccur:null};
 
 /* ---------- 도우미 ---------- */
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -713,7 +721,7 @@ function scene(type){
 /* ---------- 화면: 공통 ---------- */
 function header(){
   var m=me();
-  var navs=[["home","홈"],["mypage","마이페이지"]];
+  var navs=[["home","홈"],["reviews","여행 후기"],["mypage","마이페이지"]];
   if(m&&m.role==="admin")navs.push(["admin","관리자"]);
   return '<header class="top"><div class="wrap">'+
    '<button class="logo" data-act="go" data-v="home" aria-label="홈"><b>'+esc(ht("logo","베스트여행사"))+'</b>'+(HM().logoSub===""?'':'<i>'+esc(ht("logoSub","BEST TOUR"))+'</i>')+'</button>'+
@@ -724,7 +732,7 @@ function header(){
 }
 function footer(){
   return (function(){var s=site(),row=function(k,v){return v?'<span><b>'+k+'</b> '+esc(v)+'</span>':''};return '<footer class="foot biz"><div class="wrap"><div class="bizn">'+esc(s.company||"베스트여행사")+'</div><div class="bizl">'+row("상호",s.company)+row("대표",s.ceo)+row("사업자등록번호",s.bizNo)+row("관광사업등록번호",s.tourNo)+'</div><div class="bizl">'+row("주소",s.address)+row("전화",s.phone)+row("이메일",s.email)+row("상담시간",s.hours)+'</div><div class="bizc num">© '+new Date().getFullYear()+' '+esc(s.company||"베스트여행사")+'. All rights reserved.</div></div></footer>'})()+
-   '<nav class="mnav" aria-label="하단 메뉴">'+[["home","홈","⌂"],["list","여행상품","✈"],["mypage","포인트","◎"],[me()&&me().role==="admin"?"admin":"account",me()&&me().role==="admin"?"관리자":(me()?"내 정보":"로그인"),"☰"]].map(function(n){
+   '<nav class="mnav" aria-label="하단 메뉴">'+[["home","홈","⌂"],["list","여행상품","✈"],["reviews","후기","★"],[me()&&me().role==="admin"?"admin":"account",me()&&me().role==="admin"?"관리자":(me()?"내 정보":"로그인"),"☰"]].map(function(n){
      return '<button data-act="mnav" data-v="'+n[0]+'"'+(U.view===n[0]?' aria-current="page"':'')+'><b>'+n[2]+'</b>'+n[1]+'</button>'}).join("")+'</nav>';
 }
 function card(p){
@@ -854,9 +862,19 @@ function reviewForm(m){var done={};S.reviews.forEach(function(r){if(r.memberId==
    '<div class="full"><p class="err" id="rv-err"></p><button class="btn pri block" type="submit">후기 보내기</button></div></form></div>'}
 function myReviews(m){var rs=S.reviews.filter(function(r){return r.memberId===m.id}).sort(function(a,b){return b.at-a.at});if(!rs.length)return "";
   return '<div class="panel"><h3>내 후기</h3><div class="scroll"><table><thead><tr><th>작성일</th><th>내용</th><th>상태</th><th class="r">포인트</th></tr></thead><tbody>'+rs.map(function(r){var st=RVST[r.status]||["-","mute"];return '<tr><td class="num">'+fmtD(r.at)+'</td><td>'+stars(r.rating)+'<div class="note">'+esc(r.text.length>60?r.text.slice(0,60)+"…":r.text)+'</div></td><td><span class="pill '+st[1]+'" style="position:static">'+st[0]+'</span></td><td class="r num">'+(r.points?"+"+won(r.points)+"P":"-")+'</td></tr>'}).join("")+'</tbody></table></div></div>'}
+function rvCard(r,showP){var p=showP&&r.productId&&product(r.productId);return '<div class="panel rvc">'+stars(r.rating)+'<p>'+esc(r.text)+'</p><div class="note">'+esc(r.name)+(p?' · '+esc(p.name):'')+' · '+fmtD(r.at)+'</div></div>'}
+function rvStat(list){if(!list.length)return "";var a=list.reduce(function(t,r){return t+r.rating},0)/list.length;return '<span class="rvstat">'+stars(Math.round(a))+' <b>'+a.toFixed(1)+'</b> · 후기 '+list.length+'개</span>'}
+function prodReviews(p){var L=(S.publicReviews||[]).filter(function(r){return r.productId===p.id});
+  return '<div class="prv"><h3>이 상품 후기 '+(L.length?rvStat(L):'')+'</h3>'+(L.length?'<div class="stack" style="gap:10px">'+L.slice(0,20).map(function(r){return rvCard(r,false)}).join("")+'</div>':'<p class="note" style="margin:0">아직 등록된 후기가 없습니다.</p>')+'</div>'}
+function reviewsPage(){var L=S.publicReviews||[],f=U.rvp||"";var opts={};L.forEach(function(r){if(r.productId&&product(r.productId))opts[r.productId]=product(r.productId).name});
+  var list=f?L.filter(function(r){return r.productId===f}):L;
+  return '<div class="wrap"><section class="blk"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>'+esc(ht("reviewsTitle","고객 여행 후기"))+'</h2><p>'+esc(ht("reviewsSub",""))+'</p></div>'+rvStat(L)+'</div>'+
+   (Object.keys(opts).length>1?'<div class="chips" style="margin:0 0 16px"><button class="chip" data-act="rvp" data-id="" aria-pressed="'+(!f)+'">전체</button>'+Object.keys(opts).map(function(k){return '<button class="chip" data-act="rvp" data-id="'+k+'" aria-pressed="'+(f===k)+'">'+esc(opts[k])+'</button>'}).join("")+'</div>':'')+
+   (list.length?'<div class="grid g3 rvgrid">'+list.map(function(r){return rvCard(r,true)}).join("")+'</div>':'<div class="panel empty">아직 등록된 후기가 없습니다. 여행을 다녀오신 뒤 마이페이지에서 후기를 남겨 주세요.</div>')+
+   '<p class="note" style="margin:18px 0 0;text-align:center">후기는 예약이 확정된 회원만 쓸 수 있습니다.</p></section></div>'}
 function reviewSection(){var rs=S.publicReviews||[];if(!rs.length)return "";
-  return '<section class="blk" id="reviews"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>'+esc(ht("reviewsTitle","고객 여행 후기"))+'</h2><p>'+esc(ht("reviewsSub",""))+'</p></div></div><div class="grid g3 rvgrid">'+
-   rs.slice(0,9).map(function(r){var p=r.productId&&product(r.productId);return '<div class="panel rvc">'+stars(r.rating)+'<p>'+esc(r.text)+'</p><div class="note">'+esc(r.name)+(p?' · '+esc(p.name):'')+' · '+fmtD(r.at)+'</div></div>'}).join("")+'</div></section>'}
+  return '<section class="blk" id="reviews"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>'+esc(ht("reviewsTitle","고객 여행 후기"))+'</h2><p>'+esc(ht("reviewsSub",""))+'</p></div><button class="more" data-act="go" data-v="reviews">후기 전체 보기 ('+rs.length+')</button></div><div class="grid g3 rvgrid">'+
+   rs.slice(0,6).map(function(r){return rvCard(r,true)}).join("")+'</div></section>'}
 function mypage(){
   var m=me();
   if(!m)return '<div class="wrap" style="padding:70px 20px"><div class="panel" style="max-width:460px;margin:0 auto;text-align:center"><h2 style="font-size:24px;margin-bottom:8px">로그인이 필요합니다</h2><p class="note" style="margin:0 0 18px">포인트와 예약 내역은 로그인 후 볼 수 있습니다.</p><div class="cta" style="display:flex;gap:10px;justify-content:center"><button class="btn pri" data-act="open" data-m="login">로그인</button><button class="btn" data-act="open" data-m="signup">회원가입</button></div></div></div>';
@@ -1030,6 +1048,7 @@ function openModal(kind,id){
     '<button data-act="exgo" data-v="home" data-to="hot">회원 전용 포인트 특가 <span>→</span></button>'+
     '<button data-act="exgo" data-v="home" data-to="list">전체 여행 상품 <span>→</span></button>'+
     '<button data-act="exgo" data-v="home" data-to="list">전체 여행 상품 <span>→</span></button>'+
+    '<button data-act="exgo" data-v="reviews">여행 후기 <span>→</span></button>'+
     '<button data-act="exgo" data-v="mypage">마이페이지 · 내 포인트 <span>→</span></button>'+
     (me()?'':'<button data-act="exopen" data-m="signup">회원가입 <i>가입 시 '+won(RULE.signup)+'P</i> <span>→</span></button>')+
     '<button data-act="exfab">카카오톡 상담 <span>→</span></button>'+
@@ -1040,7 +1059,7 @@ function openModal(kind,id){
   if(kind==="booking"){
     var p=product(id),m=me(),bal=balance(m.id),nd=new Date();
     var y=nd.getFullYear(),mo=nd.getMonth();
-    var dsel=U.bkDate?'<b>'+new Date(U.bkDate).toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})+'</b> · 1인 '+won(unit(p))+'원':'<b>날짜를 선택하세요</b> · 날짜마다 요금이 다릅니다';
+    var dsel=U.bkDate?'<b>'+new Date(U.bkDate).toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"})+'</b> · 1인 '+won(unit(p))+'원':'<b>날짜를 선택하세요</b> · 1인 '+won(unit(p))+'원';
     return modal('<h2>날짜 선택</h2><p class="sub">'+esc(p.name)+'</p>'+
       '<div class="cal">'+calMonth(p,y,mo)+calMonth(p,mo===11?y+1:y,(mo+1)%12)+'</div>'+
       '<div class="dsel">'+dsel+'</div>'+
@@ -1048,7 +1067,7 @@ function openModal(kind,id){
       '<label class="field" for="bk-n"><span>인원</span><select class="inp" id="bk-n" name="people">'+[1,2,3,4,5,6].filter(function(n){return n<=p.seats}).map(function(n){return '<option value="'+n+'"'+(n===U.bkPeople?' selected':'')+'>성인 '+n+'명</option>'}).join("")+'</select></label>'+
       '<label class="field" for="bk-p"><span>포인트 사용 (보유 '+won(bal)+'P)</span><input class="inp num" id="bk-p" name="use" inputmode="numeric" value="'+(U.bkUse||0)+'"></label>'+
       '<div class="full"><button class="btn sm" type="button" data-act="use-max">쓸 수 있는 만큼 모두 사용</button><div class="sum" id="bk-sum"></div><p class="err" id="bk-err"></p>'+
-      '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.</p></div></form>'),bookingSum();
+      '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.</p>'+prodReviews(p)+'</div></form>'),bookingSum();
   }
   if(kind==="booking-cancel")return confirmBox("예약을 취소할까요?","사용한 포인트는 회원에게 돌아가고, 확정된 예약이면 적립된 포인트도 회수됩니다.","do-booking-cancel",id,"예약 취소");
   if(kind==="ledger-del"){var l=S.ledger.find(function(x){return x.id===id});return confirmBox("포인트 내역을 삭제할까요?","「"+esc(l.reason)+"」 "+(l.amount>=0?"+":"")+won(l.amount)+"P 내역이 사라지고 잔액이 그만큼 다시 계산됩니다. 삭제 사실은 관리 기록에 남습니다.","do-ledger-del",id,"내역 삭제")}
@@ -1125,7 +1144,7 @@ function earnLabel(p){var t=p.earnType||"default";if(t==="none")return "";if(t==
 function calcBooking(p,people,use){var total=unit(p)*people,pay=total-use;return {total:total,pay:pay,earn:pEarn(p,pay,people)}}
 function bookingSum(){
   var f=layer.querySelector('[data-form="booking"]');if(!f)return;
-  var p=product(f.dataset.id),n=+f.people.value,use=Math.max(0,parseInt(f.use.value.replace(/[^0-9]/g,""),10)||0),c=calcBooking(p,n,use);
+  var p=product(f.dataset.id),n=+f.elements.people.value,use=Math.max(0,parseInt(f.elements.use.value.replace(/[^0-9]/g,""),10)||0),c=calcBooking(p,n,use);
   document.getElementById("bk-sum").innerHTML='<div>상품 금액 <b class="num">'+won(p.price)+'원 × '+n+'명</b></div><div>포인트 사용 <b class="num">-'+won(use)+'P</b></div><div>예약 확정 시 적립 예정 <b class="num" style="color:var(--ok)">+'+won(Math.max(0,c.earn))+'P</b></div><div class="tot">결제 금액 <b class="num">'+won(Math.max(0,c.pay))+'원</b></div>';
 }
 
@@ -1156,10 +1175,10 @@ var forms={
     api("signup",{name:f.name.value,email:f.email.value,phone:f.phone.value,pw:f.pw.value,pw2:f.pw2.value,agree:f.agree.checked}).then(function(r){done(r,"su-err",function(){closeModal();go("mypage")})});
   },
   booking:function(f){
-    var p=product(f.dataset.id),n=+f.people.value,use=int(f.use.value||"0");
+    var p=product(f.dataset.id),n=+f.elements.people.value,use=int(f.elements.use.value||"0");
     if(!U.bkDate)return err("bk-err","출발 날짜를 먼저 선택해 주세요.");
     if(isNaN(use)||use<0)return err("bk-err","사용할 포인트를 숫자로 입력해 주세요.");
-    api("booking",{productId:p.id,people:n,use:use,depart:U.bkDate,total:unit(p)*n}).then(function(r){done(r,"bk-err",function(){U.bkDate=null;U.bkPeople=2;U.bkUse=0;closeModal();go("mypage")})});
+    api("booking",{productId:p.id,people:n,use:use,depart:U.bkDate,total:unit(p)*n}).then(function(r){done(r,"bk-err",function(){U.bkDate=null;U.bkPeople=1;U.bkUse=0;closeModal();go("mypage")})});
   },
   adjust:function(f){
     api("adjust",{memberId:U.sel,mode:f.mode.value,amount:f.amount.value,reason:f.reason.value}).then(function(r){done(r,"adj-err",render)});
@@ -1217,7 +1236,7 @@ var acts={
   country:function(d){U.ccur=d.c;U.ctab="tour";openModal("country",d.c)},
   ctab:function(d){U.ctab=d.t;openModal("country",U.ccur)},
   hotelinfo:function(){toast("호텔 실시간 최저가는 준비 중입니다. 상담으로 문의해 주세요")},
-  bkday:function(d){var f=layer.querySelector('[data-form="booking"]');if(f){U.bkPeople=+f.people.value;U.bkUse=Math.max(0,parseInt((f.use.value||"0").replace(/[^0-9]/g,""),10)||0)}U.bkDate=+d.ms;var id=f?f.dataset.id:null;if(id)openModal("booking",id)},
+  bkday:function(d){var f=layer.querySelector('[data-form="booking"]');if(f){U.bkPeople=+f.elements.people.value;U.bkUse=Math.max(0,parseInt((f.elements.use.value||"0").replace(/[^0-9]/g,""),10)||0)}U.bkDate=+d.ms;var id=f?f.dataset.id:null;if(id)openModal("booking",id)},
   wish:function(){toast("찜 목록은 준비 중입니다")},
   exgo:function(d){closeModal();if(d.v==="home"){U.view="home";render();if(d.to)scrollToId(d.to)}else go(d.v)},
   exopen:function(d){openModal(d.m)},
@@ -1235,6 +1254,7 @@ var acts={
   logout:function(){api("logout").then(function(r){done(r,null,function(){go("home")})})},
   sound:function(){SOUND=!SOUND;try{localStorage.setItem("bt-sound",SOUND?"1":"0")}catch(e){}if(SOUND){unlockAudio();chime()}render()},
   rvf:function(d){U.rvf=d.f;render()},
+  rvp:function(d){U.rvp=d.id;render()},
   "bk-ok":function(d){api("booking-confirm",{id:d.id}).then(function(r){done(r,null,render)})},
   pcat:function(d){U.pcat=d.c;render()},
   cmove:function(d){var L=clist(d.k),i=+d.i,j=i+(+d.d);if(j<0||j>=L.length)return;var t=L[i];L[i]=L[j];L[j]=t;csave(d.k,L,null)},
@@ -1252,7 +1272,7 @@ var acts={
   "rv-no":function(d){api("review-reject",{id:d.id}).then(function(r){done(r,null,render)})},
   "do-review-del":function(d){api("review-delete",{id:d.id}).then(function(r){done(r,"c-err",function(){closeModal();render()})})},
   book:function(d){var p=product(d.id);if(!p||!p.active)return;if(!(p.price>0)){openModal("ask",d.id);return}if(p.seats<1)return;if(!me()){openModal("login");toast("예약하려면 로그인이 필요합니다");return}openModal("booking",d.id)},
-  "use-max":function(){var f=layer.querySelector('[data-form="booking"]'),p=product(f.dataset.id);f.use.value=maxUse(unit(p)*+f.people.value,balance(me().id));bookingSum()},
+  "use-max":function(){var f=layer.querySelector('[data-form="booking"]'),p=product(f.dataset.id);f.elements.use.value=maxUse(unit(p)*+f.elements.people.value,balance(me().id));bookingSum()},
   tab:function(d){U.tab=d.t;render();if(d.t==="members"&&newMembers().length)setTimeout(function(){api("member-seen").then(function(){})},4000)},
   sel:function(d){U.sel=d.id;render()},
   "toggle-status":function(d){api("member-status",{id:d.id}).then(function(r){done(r,"adj-err",render)})},
@@ -1273,10 +1293,10 @@ document.addEventListener("submit",function(e){var f=e.target.closest("[data-for
 document.addEventListener("input",function(e){if(e.target.closest('[data-form="booking"]'))bookingSum()});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()});
 window.addEventListener("hashchange",route);
-function route(){var h=(location.hash||"").replace("#","");if(!h&&/\/admin\/?$/.test(location.pathname)){h="admin";U.tab="dash"}U.view=["home","mypage","admin"].indexOf(h)>-1?h:"home";render()}
+function route(){var h=(location.hash||"").replace("#","");if(!h&&/\/admin\/?$/.test(location.pathname)){h="admin";U.tab="dash"}U.view=["home","mypage","admin","reviews"].indexOf(h)>-1?h:"home";render()}
 function render(){
   gid=0;
-  document.getElementById("app").innerHTML=header()+'<main>'+({home:home,mypage:mypage,admin:admin}[U.view]||home)()+'</main>'+footer();
+  document.getElementById("app").innerHTML=header()+'<main>'+({home:home,mypage:mypage,admin:admin,reviews:reviewsPage}[U.view]||home)()+'</main>'+footer();
 }
 // 플로팅 버튼 / 상단 바
 (function(){

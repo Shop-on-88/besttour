@@ -206,7 +206,7 @@ def view(me):
                     "name": mask((member(r["memberId"]) or {}).get("name", "고객")), "at": r["at"]}
                    for r in S["reviews"] if r["status"] == "approved"]
     pub_reviews.sort(key=lambda r: -r["at"])
-    out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:60], "meId": None,
+    out = {"rule": RULE, "products": S["products"], "publicReviews": pub_reviews[:300], "meId": None,
            "site": S["site"], "categories": S["categories"], "banners": S["banners"], "home": S["home"], "limits": S["limits"],
            "hotels": S.get("hotels"), "countries": S.get("countries"), "quick": S.get("quick"),
            "members": [], "bookings": [], "ledger": [], "audit": [], "reviews": []}
