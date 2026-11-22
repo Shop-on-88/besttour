@@ -547,6 +547,17 @@ section[id]{scroll-margin-top:72px}
 .tierbox .tbh{display:flex;gap:12px;align-items:center;margin-bottom:10px}.tb{display:inline-flex;align-items:center;justify-content:center;min-width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#1f3a8a,#3b82f6);color:#fff;font-weight:800;font-size:14px;padding:0 6px}
 .tbar{height:8px;border-radius:99px;background:#E5E7EB;overflow:hidden;margin:4px 0 6px}.tbar i{display:block;height:100%;background:var(--blue)}
 @media (max-width:560px){.optrow{grid-template-columns:1fr 100px auto}.trow{grid-template-columns:1fr 1fr 70px}}
+/* 상품 상세 */
+.modal.wide{max-width:640px}
+.pdimg{position:relative;margin:-4px -4px 0;border-radius:14px;overflow:hidden;aspect-ratio:3/2;background:var(--soft)}
+.pdimg img,.pdimg .noph{width:100%;height:100%;object-fit:cover}.pdimg .pill{position:absolute;top:12px;left:12px}
+.pddesc{margin:12px 0 0;line-height:1.7;color:var(--ink2,#374151);white-space:pre-wrap}
+.pdopt{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px}.pdopt b{display:block;margin-bottom:6px}
+.pdopt div{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}.pdopt em{font-style:normal;color:var(--blue);font-weight:700}
+.pdbuy{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding:14px 16px;border-radius:14px;background:var(--soft)}
+.pdbuy b{display:block;font-size:22px;font-family:var(--f-body)}.pdbuy .earn{display:inline-block;margin-top:4px}.pdbuy .btn{min-width:130px;padding:14px 18px;font-size:16px}
+.rvmini{display:block;font-size:13px;color:#F59E0B;font-weight:700;margin:2px 0 0}.rvmini i{font-style:normal;color:var(--mute);font-weight:500;margin-left:4px}
+@media (max-width:560px){.grid.g4.pl .card .rvmini{font-size:12.5px}.pdbuy b{font-size:20px}.pdbuy .btn{min-width:110px}}
 </style>
 </head>
 <body>
@@ -743,15 +754,17 @@ function footer(){
    '<nav class="mnav" aria-label="하단 메뉴">'+[["home","홈","⌂"],["list","여행상품","✈"],["reviews","후기","★"],[me()&&me().role==="admin"?"admin":"account",me()&&me().role==="admin"?"관리자":(me()?"내 정보":"로그인"),"☰"]].map(function(n){
      return '<button data-act="mnav" data-v="'+n[0]+'"'+(U.view===n[0]?' aria-current="page"':'')+'><b>'+n[2]+'</b>'+n[1]+'</button>'}).join("")+'</nav>';
 }
-function pcard(p){var off=!p.active||p.seats<1;return '<button class="card ptcard'+(off?' soldout':'')+'" data-act="book" data-id="'+p.id+'"'+(off?' disabled':'')+'><div class="art">'+img(p)+'<span class="pill pt">P 포인트 전용</span></div><div class="body"><span class="tag">'+esc(ctags(p))+'</span><h3>'+esc(p.name)+'</h3><p class="cdesc">'+esc(p.desc||"")+'</p><div class="foot"><span class="price num" style="color:var(--blue)">'+won(p.price)+'<i>P</i></span>'+(off?'<span class="earn">마감</span>':'')+'</div></div></button>'}
+function pRevs(p){return (S.publicReviews||[]).filter(function(r){return r.productId===p.id})}
+function rvMini(p){var L=pRevs(p);if(!L.length)return "";var a=L.reduce(function(t,r){return t+r.rating},0)/L.length;return '<span class="rvmini">★ '+a.toFixed(1)+' <i>후기 '+L.length+'</i></span>'}
+function pcard(p){var off=!p.active||p.seats<1;return '<button class="card ptcard'+(off?' soldout':'')+'" data-act="pd" data-id="'+p.id+'"><div class="art">'+img(p)+'<span class="pill pt">P 포인트 전용</span></div><div class="body"><span class="tag">'+esc(ctags(p))+'</span><h3>'+esc(p.name)+'</h3><p class="cdesc">'+esc(p.desc||"")+'</p><div class="foot"><span class="price num" style="color:var(--blue)">'+won(p.price)+'<i>P</i></span>'+(off?'<span class="earn">마감</span>':'')+'</div></div></button>'}
 function card(p){
   if(p.pointOnly)return pcard(p);
   var has=p.price>0,earn=pEarn(p,p.price,1),off=!p.active||(has&&p.seats<1);
-  var seat=!has?'':(off?'<span class="pill mute">마감</span>':(p.seats<=5?'<span class="pill hot">잔여 '+p.seats+'석</span>':'<span class="pill">잔여 '+p.seats+'석</span>'));
-  return '<button class="card'+(off?' soldout':'')+'" data-act="book" data-id="'+p.id+'"'+(off?' disabled':'')+'>'+
+  var seat=has&&off?'<span class="pill mute">마감</span>':'';
+  return '<button class="card'+(off?' soldout':'')+'" data-act="pd" data-id="'+p.id+'">'+
    '<div class="art">'+img(p)+(seat?'<div class="tag">'+seat+'</div>':'')+'</div>'+
    '<div class="body"><span class="code">'+dur(p)+' · '+esc(ctags(p))+'</span>'+
-   '<h3>'+esc(p.name)+'</h3><p class="cdesc">'+esc(p.desc)+'</p>'+
+   '<h3>'+esc(p.name)+'</h3>'+rvMini(p)+'<p class="cdesc">'+esc(p.desc)+'</p>'+
    '<div class="foot">'+(has?'<span class="price num">'+won(p.price)+'<small>원 / 1인</small></span>'+(earn>0?'<span class="earn">+'+won(earn)+'P 적립</span>':'')+'':'<span class="price tbd">가격 준비중</span><span class="earn">상담 문의</span>')+'</div></div></button>';
 }
 
@@ -839,10 +852,10 @@ function home(){
     (ht("hotelsNote","")?'<p class="note" style="margin:14px 0 0;text-align:center">'+esc(ht("hotelsNote",""))+'</p>':'')+'</section>':'')+
    (shw("countries")?'<section class="blk" id="ctry"><div class="sh"><div><h2>'+esc(ht("countriesTitle","나라별 여행 정보"))+'</h2><p>'+esc(ht("countriesSub",""))+'</p></div></div>'+
     '<div class="ctrygrid">'+countryList().map(function(C){return '<button class="ctryc" data-act="country" data-c="'+esc(C.id)+'"><span class="fl">'+esc(C.flag)+'</span><b>'+esc(C.name.replace(/\(.*\)/,""))+'</b><i>명소 '+C.spots.length+'곳 · 안전정보</i></button>'}).join("")+'</div></section>':'')+
-      (shw("list")||U.tag?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(U.tag?tagName(U.tag):ht("listTitle","전체 여행 상품"))+(U.tag?' <button class="btn sm ghost" data-act="reset-search">전체 상품 보기</button>':'')+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
+      (shw("reviews")&&!U.tag&&!U.q&&U.cat==="전체"?reviewSection():'')+(shw("list")||U.tag?'<section class="blk" id="list"><div class="sh"><div><h2>'+esc(U.tag?tagName(U.tag):ht("listTitle","전체 여행 상품"))+(U.tag?' <button class="btn sm ghost" data-act="reset-search">전체 상품 보기</button>':'')+'</h2><p>'+(U.q?'"'+esc(U.q)+'" 검색 결과 ':'')+list.length+'개 상품</p></div>'+
     '<div class="chips" role="group" aria-label="분류 필터">'+CATS.map(function(c){return '<button class="chip" data-act="cat" data-c="'+esc(c)+'" aria-pressed="'+(c===U.cat)+'">'+esc(c)+'</button>'}).join("")+'</div></div>'+
-    (list.length?'<div class="grid g4 pl">'+list.map(card).join("")+'</div>':'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
-   '</section>':'')+(shw("reviews")?reviewSection():'')+'</div>';
+    (list.length?'<div class="grid g4 pl">'+list.slice(0,U.more||12).map(card).join("")+'</div>'+(list.length>(U.more||12)?'<div style="text-align:center;margin-top:20px"><button class="btn" data-act="more">상품 더 보기 ('+(list.length-(U.more||12))+'개 남음)</button></div>':''):'<div class="panel empty">조건에 맞는 상품이 없습니다. <button class="btn sm" data-act="reset-search">검색 초기화</button></div>')+
+   '</section>':'')+'</div>';
 }
 
 /* ---------- 화면: 마이페이지 ---------- */
@@ -878,7 +891,7 @@ function myReviews(m){var rs=S.reviews.filter(function(r){return r.memberId===m.
 function rvCard(r,showP){var p=showP&&r.productId&&product(r.productId);return '<div class="panel rvc">'+stars(r.rating)+'<p>'+esc(r.text)+'</p><div class="note">'+esc(r.name)+(p?' · '+esc(p.name):'')+' · '+fmtD(r.at)+'</div></div>'}
 function rvStat(list){if(!list.length)return "";var a=list.reduce(function(t,r){return t+r.rating},0)/list.length;return '<span class="rvstat">'+stars(Math.round(a))+' <b>'+a.toFixed(1)+'</b> · 후기 '+list.length+'개</span>'}
 function prodReviews(p){var L=(S.publicReviews||[]).filter(function(r){return r.productId===p.id});
-  return '<div class="prv"><h3>이 상품 후기 '+(L.length?rvStat(L):'')+'</h3>'+(L.length?'<div class="stack" style="gap:10px">'+L.slice(0,20).map(function(r){return rvCard(r,false)}).join("")+'</div>':'<p class="note" style="margin:0">아직 등록된 후기가 없습니다.</p>')+'</div>'}
+  return '<div class="prv"><h3>이 상품 후기 '+(L.length?rvStat(L):'')+'</h3>'+(L.length?'<div class="stack" style="gap:10px">'+L.slice(0,20).map(function(r){return rvCard(r,false)}).join("")+'</div>':'<p class="note" style="margin:0">아직 등록된 후기가 없습니다.</p>')+'<p class="note" style="margin:12px 0 0">이 상품을 다녀오신 회원은 마이페이지에서 후기를 쓸 수 있습니다.</p></div>'}
 function reviewsPage(){var L=S.publicReviews||[],f=U.rvp||"";var opts={};L.forEach(function(r){if(r.productId&&product(r.productId))opts[r.productId]=product(r.productId).name});
   var list=f?L.filter(function(r){return r.productId===f}):L;
   return '<div class="wrap"><section class="blk"><div class="sh"><div><span class="eyebrow">REAL REVIEWS</span><h2>'+esc(ht("reviewsTitle","고객 여행 후기"))+'</h2><p>'+esc(ht("reviewsSub",""))+'</p></div>'+rvStat(L)+'</div>'+
@@ -1047,7 +1060,7 @@ function admAudit(){
 /* ---------- 모달 ---------- */
 var layer=document.getElementById("layer");
 function closeModal(){layer.innerHTML=""}
-function modal(html){layer.innerHTML='<div class="ov" data-act="ov"><div class="modal" role="dialog" aria-modal="true">'+'<button class="x" data-act="close" aria-label="닫기">×</button>'+html+'</div></div>';var f=layer.querySelector("input,select,button.pri");if(f)f.focus()}
+function modal(html,cls){layer.innerHTML='<div class="ov" data-act="ov"><div class="modal'+(cls?' '+cls:'')+'" role="dialog" aria-modal="true">'+'<button class="x" data-act="close" aria-label="닫기">×</button>'+html+'</div></div>';var f=layer.querySelector("input,select,button.pri");if(f)f.focus()}
 function confirmBox(title,text,act,id,label){modal('<h2>'+title+'</h2><p class="sub">'+text+'</p><p class="err" id="c-err"></p><div class="acts"><button class="btn" data-act="close">돌아가기</button><button class="btn bad" data-act="'+act+'" data-id="'+(id||"")+'">'+label+'</button></div>')}
 function openModal(kind,id){
   if(kind==="install"){return modal('<h2>앱 설치</h2><p class="sub">홈 화면에 베스트여행사 아이콘을 추가하면 앱처럼 바로 열 수 있습니다.</p><div class="insg"><div><b>안드로이드 (크롬)</b><p>오른쪽 위 ⋮ 메뉴 → <em>홈 화면에 추가</em> 또는 <em>앱 설치</em></p></div><div><b>아이폰 (사파리)</b><p>아래쪽 공유 버튼 → <em>홈 화면에 추가</em></p></div><div><b>PC (크롬·엣지)</b><p>주소창 오른쪽 설치 아이콘 → <em>설치</em></p></div></div><button class="btn pri block" data-act="close">확인</button>')}
@@ -1075,6 +1088,16 @@ function openModal(kind,id){
     '</div>');
   if(kind==="login")return modal('<h2>로그인</h2><p class="sub">가입한 이메일과 비밀번호를 입력하세요.</p><form data-form="login" class="stack" style="gap:12px"><label class="field" for="li-email"><span>이메일</span><input class="inp" id="li-email" name="email" type="email" autocomplete="username"></label><label class="field" for="li-pw"><span>비밀번호</span><input class="inp" id="li-pw" name="pw" type="password" autocomplete="current-password"></label><p class="err" id="li-err"></p><button class="btn pri block" type="submit">로그인</button></form><div class="acts" style="justify-content:center;margin-top:14px"><button class="btn sm ghost" data-act="open" data-m="signup">아직 회원이 아니신가요? 회원가입</button></div>');
   if(kind==="signup")return modal('<h2>회원가입</h2><p class="sub">가입을 마치면 '+won(RULE.signup)+'P가 바로 지급됩니다.</p><form data-form="signup" class="fgrid"><label class="field" for="su-name"><span>이름</span><input class="inp" id="su-name" name="name" autocomplete="name"></label><label class="field" for="su-phone"><span>연락처</span><input class="inp" id="su-phone" name="phone" inputmode="tel" placeholder="010-0000-0000" autocomplete="tel"></label><label class="field full" for="su-email"><span>이메일 (로그인 아이디)</span><input class="inp" id="su-email" name="email" type="email" autocomplete="username"></label><label class="field" for="su-pw"><span>비밀번호 (8자 이상)</span><input class="inp" id="su-pw" name="pw" type="password" autocomplete="new-password"></label><label class="field" for="su-pw2"><span>비밀번호 확인</span><input class="inp" id="su-pw2" name="pw2" type="password" autocomplete="new-password"></label><label class="full note" for="su-agree" style="display:flex;gap:8px;align-items:center"><input id="su-agree" name="agree" type="checkbox"> 이용약관과 개인정보 처리방침에 동의합니다</label><div class="full"><p class="err" id="su-err"></p><button class="btn pri block" type="submit">가입하고 포인트 받기</button></div></form>');
+  if(kind==="pd"){
+    var q=product(id);if(!q)return;var has=q.price>0,off=!q.active||(has&&q.seats<1),L=pRevs(q),earn=pEarn(q,q.price,1);
+    return modal('<div class="pdimg">'+img(q)+(q.pointOnly?'<span class="pill pt">P 포인트 전용</span>':'')+'</div>'+
+     '<span class="code" style="display:block;margin:14px 0 4px">'+dur(q)+' · '+esc(ctags(q))+'</span><h2 style="margin:0 0 6px">'+esc(q.name)+'</h2>'+(L.length?rvStat(L):'')+
+     (q.desc?'<p class="pddesc">'+esc(q.desc)+'</p>':'')+
+     ((q.options||[]).length?'<div class="pdopt"><b>추가 옵션</b>'+(q.options||[]).map(function(o){return '<div><span>'+esc(o.name)+'</span><em>+'+won(o.price)+(q.pointOnly?'P':'원')+'</em></div>'}).join("")+'</div>':'')+
+     '<div class="pdbuy"><div><span class="note">1인</span><b class="num">'+(has?won(q.price)+(q.pointOnly?'P':'원'):'가격 문의')+'</b>'+(earn>0?'<span class="earn">+'+won(earn)+'P 적립</span>':'')+'</div>'+
+     (off?'<button class="btn" disabled>마감</button>':has?'<button class="btn pri" data-act="book" data-id="'+q.id+'">예약하기</button>':'<button class="btn pri" data-act="pd-ask" data-id="'+q.id+'">상담 문의</button>')+'</div>'+
+     prodReviews(q),"wide");
+  }
   if(kind==="booking"){
     var p=product(id),m=me(),bal=balance(m.id),nd=new Date();
     var y=nd.getFullYear(),mo=nd.getMonth();
@@ -1087,7 +1110,7 @@ function openModal(kind,id){
       (p.pointOnly?'<div class="field"><span>보유 포인트</span><div class="inp num" style="display:flex;align-items:center">'+won(bal)+'P</div><input type="hidden" name="use" value="0"></div>':'<label class="field" for="bk-p"><span>포인트 사용 (보유 '+won(bal)+'P)</span><input class="inp num" id="bk-p" name="use" inputmode="numeric" value="'+(U.bkUse||0)+'"></label>')+
       ((p.options||[]).length?'<div class="field full"><span>추가 옵션 (1인 기준)</span><div class="optlist">'+(p.options||[]).map(function(o,i){return '<label class="opt"><input type="checkbox" name="opt" value="'+i+'"> <b>'+esc(o.name)+'</b><em>+'+won(o.price)+(p.pointOnly?'P':'원')+'</em></label>'}).join("")+'</div></div>':'')+
       '<div class="full">'+(p.pointOnly?'':'<button class="btn sm" type="button" data-act="use-max">쓸 수 있는 만큼 모두 사용</button>')+'<div class="sum" id="bk-sum"></div><p class="err" id="bk-err"></p>'+
-      '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">'+(p.pointOnly?'신청하면 포인트가 바로 사용되고, 담당자 확인 후 확정됩니다. 취소하면 포인트가 돌아옵니다.':'신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.')+'</p>'+prodReviews(p)+'</div></form>'),bookingSum();
+      '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">'+(p.pointOnly?'신청하면 포인트가 바로 사용되고, 담당자 확인 후 확정됩니다. 취소하면 포인트가 돌아옵니다.':'신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.')+'</p></div></form>'),bookingSum();
   }
   if(kind==="booking-cancel")return confirmBox("예약을 취소할까요?","사용한 포인트는 회원에게 돌아가고, 확정된 예약이면 적립된 포인트도 회수됩니다.","do-booking-cancel",id,"예약 취소");
   if(kind==="ledger-del"){var l=S.ledger.find(function(x){return x.id===id});return confirmBox("포인트 내역을 삭제할까요?","「"+esc(l.reason)+"」 "+(l.amount>=0?"+":"")+won(l.amount)+"P 내역이 사라지고 잔액이 그만큼 다시 계산됩니다. 삭제 사실은 관리 기록에 남습니다.","do-ledger-del",id,"내역 삭제")}
@@ -1277,8 +1300,8 @@ var acts={
   mnav:function(d){if(d.v==="list"){U.view="home";render();scrollToId("list")}else if(d.v==="account"){me()?go("mypage"):openModal("login")}else go(d.v)},
   "go-list":function(){U.view="home";render();scrollToId("list")},
   scroll:function(d){scrollToId(d.to)},
-  cat:function(d){U.tag=null;U.cat=d.c;render();scrollToId("list")},
-  "reset-search":function(){U.q="";U.cat="전체";U.tag=null;render();scrollToId("list")},
+  cat:function(d){U.tag=null;U.more=12;U.cat=d.c;render();scrollToId("list")},
+  "reset-search":function(){U.q="";U.cat="전체";U.tag=null;U.more=12;render();scrollToId("list")},
   open:function(d){U.mc=d.c||"";U.mp=d.p||"";openModal(d.m,d.id)},
   close:closeModal,
   logout:function(){api("logout").then(function(r){done(r,null,function(){go("home")})})},
@@ -1301,6 +1324,9 @@ var acts={
   "rv-ok":function(d){var i=document.getElementById("rvp-"+d.id);api("review-approve",{id:d.id,points:i?i.value:0}).then(function(r){done(r,null,render)})},
   "rv-no":function(d){api("review-reject",{id:d.id}).then(function(r){done(r,null,render)})},
   "do-review-del":function(d){api("review-delete",{id:d.id}).then(function(r){done(r,"c-err",function(){closeModal();render()})})},
+  more:function(){U.more=(U.more||12)+12;render()},
+  pd:function(d){openModal("pd",d.id)},
+  "pd-ask":function(d){openModal("ask",d.id)},
   book:function(d){var p=product(d.id);if(!p||!p.active)return;if(!(p.price>0)){openModal("ask",d.id);return}if(p.seats<1)return;if(!me()){openModal("login");toast("예약하려면 로그인이 필요합니다");return}openModal("booking",d.id)},
   "use-max":function(){var f=layer.querySelector('[data-form="booking"]'),p=product(f.dataset.id);f.elements.use.value=maxUse((unit(p)+optSum(p,selOpts(f)))*+f.elements.people.value,balance(me().id));bookingSum()},
   tab:function(d){U.tab=d.t;render();if(d.t==="members"&&newMembers().length)setTimeout(function(){api("member-seen").then(function(){})},4000)},
