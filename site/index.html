@@ -181,6 +181,9 @@ td.r,th.r{text-align:right}
 .tile b{display:block;font-family:var(--f-mono);font-size:24px;font-weight:600;margin-top:4px}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 .row-sel{background:var(--blue-soft)}
+.mrow{cursor:pointer}.mrow:hover{background:var(--blue-soft)}.row-sel td:first-child{box-shadow:inset 4px 0 0 var(--blue)}
+.mbtn{font-size:15px;padding:10px 14px;line-height:1.25;white-space:nowrap;min-height:48px}
+.adjbox{border:2px solid var(--blue)}.adjbox select.inp,.adjbox input.inp{font-size:17px;min-height:50px}.adjbox .field span{font-size:15px;font-weight:700}.adjbox button[type=submit]{font-size:17px;min-height:50px;padding:0 26px}
 .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .bar .sp{flex:1}
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -959,11 +962,11 @@ function admMembers(){
   var sel=U.sel&&member(U.sel);
   var left='<div class="panel"><form class="bar" data-form="msearch"><input class="inp" id="m-q" name="q" placeholder="이름, 이메일, 연락처 검색" value="'+esc(U.mq)+'" style="flex:1;min-width:140px"><button class="btn sm" type="submit">검색</button></form>'+
    '<div class="scroll"><table><thead><tr><th>회원</th><th>가입일</th><th class="r">포인트</th><th>상태</th><th></th></tr></thead><tbody>'+
-   (mem.length?mem.slice().sort(function(a,b){return b.joined-a.joined}).map(function(x){var isN=x.joined>((me()&&me().seenAt)||0);return '<tr'+(U.sel===x.id?' class="row-sel"':'')+'><td><b>'+esc(x.name)+'</b>'+(isN?' <i class="nbadge">NEW</i>':'')+(tierOf(x.id).cur?' <span class="pill" style="position:static">'+esc(tierOf(x.id).cur.name)+'</span>':'')+'<div class="note">'+esc(x.email)+'<br>'+esc(x.phone)+'</div></td><td class="num">'+fmtD(x.joined)+'</td><td class="r num">'+won(balance(x.id))+'P</td><td><span class="pill '+(x.status==="active"?"ok":"warn")+'" style="position:static">'+(x.status==="active"?"정상":"정지")+'</span></td><td class="r"><button class="btn sm'+(U.sel===x.id?" pri":"")+'" data-act="sel" data-id="'+x.id+'">포인트 관리</button></td></tr>'}).join("")
+   (mem.length?mem.slice().sort(function(a,b){return b.joined-a.joined}).map(function(x){var isN=x.joined>((me()&&me().seenAt)||0);return '<tr class="mrow'+(U.sel===x.id?' row-sel':'')+'" data-act="sel" data-id="'+x.id+'" title="눌러서 포인트 추가·차감"><td><b>'+esc(x.name)+'</b>'+(isN?' <i class="nbadge">NEW</i>':'')+(tierOf(x.id).cur?' <span class="pill" style="position:static">'+esc(tierOf(x.id).cur.name)+'</span>':'')+'<div class="note">'+esc(x.email)+'<br>'+esc(x.phone)+'</div></td><td class="num">'+fmtD(x.joined)+'</td><td class="r num">'+won(balance(x.id))+'P</td><td><span class="pill '+(x.status==="active"?"ok":"warn")+'" style="position:static">'+(x.status==="active"?"정상":"정지")+'</span></td><td class="r"><button class="btn pri mbtn" data-act="sel" data-id="'+x.id+'">포인트<br>추가·차감</button></td></tr>'}).join("")
      :'<tr><td colspan="5" class="empty">검색된 회원이 없습니다.</td></tr>')+'</tbody></table></div></div>';
   var right;
-  if(!sel)right='<div class="panel empty">왼쪽에서 회원을 고르면 포인트를 추가, 변경, 삭제할 수 있습니다.</div>';
-  else right='<div class="stack"><div class="panel"><div class="bar"><div><h3 style="margin:0">'+esc(sel.name)+' 회원</h3><span class="note">'+esc(sel.email)+'</span></div><span class="sp"></span><span class="pbadge num">'+won(balance(sel.id))+'P</span></div>'+
+  if(!sel)right='<div class="panel empty" style="font-size:17px;line-height:1.7"><b style="font-size:19px;color:var(--blue)">회원 이름을 누르세요</b><br>회원을 누르면 이 자리에 포인트 추가·차감 칸과<br>포인트 내역(변경·삭제)이 나옵니다.</div>';
+  else right='<div class="stack" id="adj-panel"><div class="panel adjbox"><div class="bar"><div><h3 style="margin:0">'+esc(sel.name)+' 회원</h3><span class="note">'+esc(sel.email)+'</span></div><span class="sp"></span><span class="pbadge num">'+won(balance(sel.id))+'P</span></div>'+
     '<form data-form="adjust" class="fgrid"><label class="field" for="adj-mode"><span>작업</span><select class="inp" id="adj-mode" name="mode"><option value="add">포인트 추가 (지급)</option><option value="sub">포인트 차감</option><option value="set">잔액을 이 값으로 변경</option></select></label>'+
     '<label class="field" for="adj-amt"><span>포인트</span><input class="inp num" id="adj-amt" name="amount" inputmode="numeric" placeholder="예: 5000"></label>'+
     '<label class="field full" for="adj-why"><span>사유 (회원 포인트 내역에 표시됩니다)</span><input class="inp" id="adj-why" name="reason" placeholder="예: 이벤트 당첨 포인트"></label>'+
@@ -1330,7 +1333,7 @@ var acts={
   book:function(d){var p=product(d.id);if(!p||!p.active)return;if(!(p.price>0)){openModal("ask",d.id);return}if(p.seats<1)return;if(!me()){openModal("login");toast("예약하려면 로그인이 필요합니다");return}openModal("booking",d.id)},
   "use-max":function(){var f=layer.querySelector('[data-form="booking"]'),p=product(f.dataset.id);f.elements.use.value=maxUse((unit(p)+optSum(p,selOpts(f)))*+f.elements.people.value,balance(me().id));bookingSum()},
   tab:function(d){U.tab=d.t;render();if(d.t==="members"&&newMembers().length)setTimeout(function(){api("member-seen").then(function(){})},4000)},
-  sel:function(d){U.sel=d.id;render()},
+  sel:function(d){U.sel=d.id;render();setTimeout(function(){var el=document.getElementById("adj-panel");if(el&&window.innerWidth<900)el.scrollIntoView({behavior:"smooth",block:"start"});var a=document.getElementById("adj-amt");if(a&&window.innerWidth>=900)a.focus()},30)},
   "toggle-status":function(d){api("member-status",{id:d.id}).then(function(r){done(r,"adj-err",render)})},
   "toggle-product":function(d){api("product-toggle",{id:d.id}).then(function(r){done(r,null,render)})},
   "do-booking-cancel":function(d){api("booking-cancel",{id:d.id}).then(function(r){done(r,"c-err",function(){closeModal();render()})})},
