@@ -10,7 +10,7 @@ PORT = int(os.environ.get("BEST_PORT", "8091"))
 os.makedirs(DATA, exist_ok=True)
 DB = os.path.join(DATA, "best.db")
 
-RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 0.3, "review": 1000}
+RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 0.3, "review": 1000, "wdOn": 1, "wdMin": 10000}
 SESSION_DAYS = 30
 LOCK = threading.RLock()
 UPLOADS = os.path.join(DATA, "uploads")
@@ -54,6 +54,7 @@ def defaults(st):
     for k, v in RULE.items():
         st["rule"].setdefault(k, v)
     RULE.update(st["rule"])
+    st.setdefault("withdrawals", [])
     # 카테고리 이름 통일: 배너가 없어진 카테고리를 가리키면 지금 카테고리로 바꿈
     if not st.get("catfix1") and st.get("categories"):
         names = [c["name"] for c in st["categories"]]
@@ -221,11 +222,13 @@ def view(me):
         out["ledger"] = S["ledger"]
         out["audit"] = S["audit"][:500]
         out["reviews"] = S["reviews"]
+        out["withdrawals"] = S.get("withdrawals", [])
     else:
         out["members"] = [pub_member(me)]
         out["bookings"] = [b for b in S["bookings"] if b["memberId"] == me["id"]]
         out["ledger"] = [l for l in S["ledger"] if l["memberId"] == me["id"]]
         out["reviews"] = [r for r in S["reviews"] if r["memberId"] == me["id"]]
+        out["withdrawals"] = [w for w in S.get("withdrawals", []) if w["memberId"] == me["id"]]
     return out
 
 
@@ -774,6 +777,13 @@ def a_rules_save(me, d, ctx):
     if not (0 <= gap <= 1440 and 0 <= perday <= 100 and 0 <= pend <= 100 and 1 <= minlen <= 500):
         raise Err("후기 제한 값을 확인해 주세요.")
     RULE.update({"signup": signup, "rate": rate / 100.0, "minUse": minuse, "maxRatio": maxr / 100.0, "review": review})
+    if d.get("wdMin") is not None:
+        try:
+            wdmin = to_int(d.get("wdMin"))
+        except Err:
+            raise Err("최소 출금 포인트를 숫자로 입력해 주세요.")
+        if not 0 <= wdmin <= 100000000: raise Err("최소 출금 포인트를 확인해 주세요.")
+        RULE.update({"wdMin": wdmin, "wdOn": 1 if d.get("wdOn") else 0})
     S["rule"] = dict(RULE)
     S["limits"].update({"gapMin": gap, "perDay": perday, "pending": pend, "minLen": minlen})
     audit("포인트 규칙 변경: 가입 %sP, 적립 %d%%, 최소 사용 %sP, 사용 한도 %d%%, 후기 %sP" % (won(signup), rate, won(minuse), maxr, won(review)))
@@ -863,7 +873,69 @@ def a_content_save(me, d, ctx):
     return None, "저장했습니다"
 
 
+def _wd(d):
+    w = next((x for x in S.setdefault("withdrawals", []) if x["id"] == d.get("id")), None)
+    if not w: raise Err("출금 신청을 찾을 수 없습니다.")
+    return w
+
+
+def a_withdraw(me, d, ctx):
+    need_member(me)
+    if me["role"] == "admin": raise Err("관리자 계정은 출금 신청을 할 수 없습니다.")
+    if not RULE.get("wdOn"): raise Err("지금은 포인트 출금 신청을 받지 않습니다. 고객센터로 문의해 주세요.")
+    try:
+        amt = to_int(d.get("amount"))
+    except Err:
+        raise Err("출금할 포인트를 숫자로 입력해 주세요.")
+    bank, holder, acct = _txt(d.get("bank"), 30), _txt(d.get("holder"), 30), re.sub(r"[^0-9-]", "", str(d.get("account") or ""))[:30]
+    bal, mn = balance(me["id"]), int(RULE.get("wdMin") or 0)
+    if amt <= 0: raise Err("출금할 포인트를 입력해 주세요.")
+    if amt < mn: raise Err("%sP 이상부터 출금 신청할 수 있습니다." % won(mn))
+    if amt > bal: raise Err("보유 포인트(%sP)보다 많이 신청할 수 없습니다." % won(bal))
+    if not bank or not holder or len(re.sub(r"\D", "", acct)) < 6: raise Err("은행, 예금주, 계좌번호를 정확히 입력해 주세요.")
+    if any(w for w in S["withdrawals"] if w["memberId"] == me["id"] and w["status"] == "pending"):
+        raise Err("처리 중인 출금 신청이 있습니다. 처리가 끝난 뒤 다시 신청해 주세요.")
+    w = {"id": uid("w"), "memberId": me["id"], "amount": amt, "bank": bank, "holder": holder, "account": acct,
+         "status": "pending", "at": now_ms()}
+    S["withdrawals"].append(w)
+    add_ledger(me["id"], "withdraw", -amt, "출금 신청 (%s)" % bank, withdrawId=w["id"])
+    audit("%s 회원 포인트 출금 신청 %sP (%s %s)" % (me["name"], won(amt), bank, holder))
+    return w, "출금 신청이 접수되었습니다. 담당자 확인 후 입금됩니다"
+
+
+def a_withdraw_cancel(me, d, ctx):
+    need_member(me)
+    w = _wd(d)
+    if w["memberId"] != me["id"] and me["role"] != "admin": raise Err("출금 신청을 찾을 수 없습니다.")
+    if w["status"] != "pending": raise Err("처리 대기 중인 신청만 취소할 수 있습니다.")
+    w["status"], w["doneAt"] = "canceled", now_ms()
+    add_ledger(w["memberId"], "withdraw_back", w["amount"], "출금 신청 취소", withdrawId=w["id"])
+    return None, "출금 신청을 취소했습니다. 포인트가 돌아왔습니다"
+
+
+def a_withdraw_done(me, d, ctx):
+    need_admin(me)
+    w = _wd(d)
+    if w["status"] != "pending": raise Err("처리 대기 중인 신청만 완료할 수 있습니다.")
+    w["status"], w["doneAt"] = "done", now_ms()
+    x = member(w["memberId"])
+    audit("%s 회원 출금 %sP 입금 완료 처리" % (x["name"] if x else "탈퇴 회원", won(w["amount"])))
+    return None, "입금 완료로 처리했습니다"
+
+
+def a_withdraw_reject(me, d, ctx):
+    need_admin(me)
+    w = _wd(d)
+    if w["status"] != "pending": raise Err("처리 대기 중인 신청만 반려할 수 있습니다.")
+    why = _txt(d.get("reason"), 100) or "관리자 반려"
+    w["status"], w["doneAt"], w["reason"] = "rejected", now_ms(), why
+    if member(w["memberId"]):
+        add_ledger(w["memberId"], "withdraw_back", w["amount"], "출금 반려: " + why, withdrawId=w["id"], by=me["id"])
+    return None, "반려했습니다. 포인트를 회원에게 돌려주었습니다"
+
+
 ACTIONS = {
+    "withdraw": a_withdraw, "withdraw-cancel": a_withdraw_cancel, "withdraw-done": a_withdraw_done, "withdraw-reject": a_withdraw_reject,
     "content-save": a_content_save, "tiers-save": a_tiers_save,
     "home-save": a_home_save, "rules-save": a_rules_save, "member-edit": a_member_edit, "member-pw": a_member_pw,
     "upload": a_upload, "settings": a_settings, "cat-save": a_cat_save, "cat-move": a_cat_move, "cat-delete": a_cat_delete,
