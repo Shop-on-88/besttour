@@ -918,7 +918,7 @@ function mypage(){
     '<div style="margin:12px 0 4px"><span class="lbl">보유 포인트</span><div class="big" style="font-size:40px">'+won(bal)+'P</div></div>'+
     '<div style="margin-top:14px;font-size:13px;color:#4A4F66">'+(t.next?esc(t.next)+' 등급까지 '+won(t.left)+'원 남았습니다':'최고 등급입니다')+'<div class="gauge"><i style="width:'+t.pct+'%"></i></div></div></div>'+
     '<div class="dn"><div><span class="lbl">Passenger</span><div style="font-weight:700;font-size:17px">'+esc(m.name)+'</div><div style="font-size:12.5px;color:#6A6F84">'+esc(m.email)+'</div></div><div class="barcode" aria-hidden="true"></div></div></div>'+
-   (RULE.wdOn?'<button class="btn block wdbtn" data-act="open" data-m="withdraw">포인트 출금 신청</button>':'')+'<div class="panel"><h3>포인트 사용 안내</h3><p class="note" style="margin:0">'+won(RULE.minUse)+'P 이상부터 '+(RULE.maxRatio>=1?'결제 금액 전액을 포인트로 낼 수 있습니다.':'결제 금액의 '+Math.round(RULE.maxRatio*100)+'%까지 쓸 수 있습니다.')+' 예약을 취소하면 사용한 포인트는 돌아오고 적립된 포인트는 회수됩니다.</p></div></div>'+
+   (RULE.wdOn?'<button class="btn block wdbtn" data-act="open" data-m="withdraw">포인트 출금 신청</button>':'')+'<div class="panel"><h3>포인트 사용 안내</h3><p class="note" style="margin:0">'+won(RULE.minUse)+'P 이상부터 '+(PU()>1?won(PU())+'P 단위로, ':'')+(RULE.maxRatio>=1?'결제 금액 전액을 포인트로 낼 수 있습니다.':'결제 금액의 '+Math.round(RULE.maxRatio*100)+'%까지 쓸 수 있습니다.')+' 예약을 취소하면 사용한 포인트는 돌아오고 적립된 포인트는 회수됩니다.</p></div></div>'+
    '<div class="stack"><div class="panel"><h3>예약 내역</h3><div class="scroll"><table><thead><tr><th>예약일</th><th>상품</th><th class="r">결제</th><th>상태</th><th></th></tr></thead><tbody>'+
     (bk.length?bk.map(function(b){var p=product(b.productId);return '<tr><td class="num">'+fmtD(b.at)+'</td><td>'+esc(p?p.name:"삭제된 상품")+' · '+b.people+'명'+(b.depart?'<div class="note">출발 '+fmtD(b.depart)+'</div>':'')+((b.opts||[]).length?'<div class="note" style="color:var(--blue)">옵션: '+esc(b.opts.join(", "))+'</div>':'')+(b.pointOnly?'<div class="note">포인트 전용</div>':'')+'</td><td class="r num">'+(b.pointOnly?'-':won(b.pay)+'원')+'</td><td>'+bkPill(b)+(b.status==="pending"?'<div class="note">확정 시 +'+won(b.earned)+'P</div>':'')+'</td><td class="r">'+(b.status!=="cancelled"?'<button class="btn sm" data-act="open" data-m="booking-cancel" data-id="'+b.id+'">취소</button>':'')+'</td></tr>'}).join("")
       :'<tr><td colspan="5" class="empty">아직 예약이 없습니다. <button class="btn sm" data-act="go-list">상품 보러 가기</button></td></tr>')+
@@ -1043,7 +1043,7 @@ function admRules(){
   return '<form data-form="rules" class="stack" style="max-width:760px">'+
    '<div class="panel"><h3>포인트 규칙</h3><p class="note" style="margin:-6px 0 12px">바꾸면 바로 홈 화면 안내 문구와 예약 계산에 반영됩니다. 이미 쌓인 포인트는 바뀌지 않습니다.</p><div class="fgrid">'+
     n("signup","가입 축하 포인트",RULE.signup,"P")+n("rate","예약 적립률",Math.round(RULE.rate*100),"%")+n("minUse","최소 사용 포인트",RULE.minUse,"P")+n("maxRatio","결제 금액 대비 최대 사용",Math.round(RULE.maxRatio*100),"%")+n("review","후기 승인 기본 포인트",RULE.review||0,"P")+'</div></div>'+
-   '<div class="panel"><h3>포인트 출금</h3><p class="note" style="margin:-6px 0 12px">회원이 마이페이지에서 포인트 출금을 신청할 수 있게 합니다. 신청하면 포인트가 먼저 빠지고, 출금신청 탭에서 입금 후 "입금 완료"를 누르면 됩니다.</p><div class="fgrid"><label class="field" for="ru-wdOn" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="ru-wdOn" name="wdOn"'+(RULE.wdOn?' checked':'')+'> <b>출금 신청 받기</b></label>'+n("wdMin","최소 출금 포인트",RULE.wdMin==null?10000:RULE.wdMin,"P")+'</div></div>'+
+   '<div class="panel"><h3>포인트 출금</h3><p class="note" style="margin:-6px 0 12px">회원이 마이페이지에서 포인트 출금을 신청할 수 있게 합니다. 신청하면 포인트가 먼저 빠지고, 출금신청 탭에서 입금 후 "입금 완료"를 누르면 됩니다.</p><div class="fgrid"><label class="field" for="ru-wdOn" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="ru-wdOn" name="wdOn"'+(RULE.wdOn?' checked':'')+'> <b>출금 신청 받기</b></label>'+n("wdMin","최소 출금 포인트",RULE.wdMin==null?10000:RULE.wdMin,"P")+n("unit","포인트 사용·출금 단위",RULE.unit||1,"P")+'</div><p class="note" style="margin:8px 0 0">단위를 10000으로 두면 1만P, 2만P처럼 만원 단위로만 쓰고 출금할 수 있습니다. 1로 두면 단위 제한이 없습니다.</p></div>'+
    '<div class="panel"><h3>후기 도배 방지</h3><p class="note" style="margin:-6px 0 12px">0으로 두면 그 제한을 쓰지 않습니다.</p><div class="fgrid">'+
     n("gapMin","같은 회원 후기 간격",L.gapMin==null?10:L.gapMin,"분")+n("perDay","하루 최대 후기",L.perDay==null?3:L.perDay,"개")+n("pending","승인 대기 최대",L.pending==null?2:L.pending,"개")+n("minLen","후기 최소 글자",L.minLen||20,"자")+'</div></div>'+
    '<div class="panel"><p class="err" id="ru-err"></p><button class="btn pri" type="submit">저장</button></div></form>'+admTiers();
@@ -1068,7 +1068,7 @@ function admWithdraws(){
 function myWithdraws(m){
   var L=(S.withdrawals||[]).filter(function(w){return w.memberId===m.id}).sort(function(a,b){return b.at-a.at});
   return '<div class="panel"><div class="bar"><h3 style="margin:0">포인트 출금</h3><span class="sp"></span>'+(RULE.wdOn?'<button class="btn pri wdbtn" data-act="open" data-m="withdraw">출금 신청하기</button>':'')+'</div>'+
-   '<p class="note" style="margin:6px 0 10px">'+(RULE.wdOn?won(RULE.wdMin||0)+'P 이상부터 신청할 수 있습니다. 담당자 확인 후 적어주신 계좌로 입금됩니다.':'지금은 출금 신청을 받지 않습니다.')+'</p>'+
+   '<p class="note" style="margin:6px 0 10px">'+(RULE.wdOn?won(RULE.wdMin||0)+'P 이상부터'+(PU()>1?' '+won(PU())+'P 단위로':'')+' 신청할 수 있습니다. 담당자 확인 후 적어주신 계좌로 입금됩니다.':'지금은 출금 신청을 받지 않습니다.')+'</p>'+
    (L.length?'<div class="scroll"><table><thead><tr><th>신청일</th><th class="r">포인트</th><th>계좌</th><th>상태</th><th></th></tr></thead><tbody>'+L.map(function(w){var st=WDST[w.status]||["-","mute"];return '<tr><td class="num">'+fmtD(w.at)+'</td><td class="r num">'+won(w.amount)+'P</td><td>'+esc(w.bank)+' '+esc(w.account)+'</td><td><span class="pill '+st[1]+'" style="position:static">'+st[0]+'</span>'+(w.reason?'<div class="note">'+esc(w.reason)+'</div>':'')+'</td><td>'+(w.status==="pending"?'<button class="btn sm" data-act="wd-cancel" data-id="'+w.id+'">신청 취소</button>':'')+'</td></tr>'}).join("")+'</tbody></table></div>':'')+'</div>';
 }
 function admBookings(){
@@ -1132,7 +1132,7 @@ function openModal(kind,id){
       '<div class="dsel">'+dsel+'</div>'+
       '<form data-form="booking" data-id="'+p.id+'" class="fgrid">'+
       '<label class="field" for="bk-n"><span>인원</span><select class="inp" id="bk-n" name="people">'+[1,2,3,4,5,6].filter(function(n){return n<=p.seats}).map(function(n){return '<option value="'+n+'"'+(n===U.bkPeople?' selected':'')+'>성인 '+n+'명</option>'}).join("")+'</select></label>'+
-      (p.pointOnly?'<div class="field"><span>보유 포인트</span><div class="inp num" style="display:flex;align-items:center">'+won(bal)+'P</div><input type="hidden" name="use" value="0"></div>':'<label class="field" for="bk-p"><span>포인트 사용 (보유 '+won(bal)+'P)</span><input class="inp num" id="bk-p" name="use" inputmode="numeric" value="'+(U.bkUse||0)+'"></label><label class="full autouse" for="bk-auto"><input type="checkbox" id="bk-auto" name="auto"'+(U.bkAuto===false?'':' checked')+'> <b>보유 포인트 자동 차감</b> <span class="note">쓸 수 있는 만큼 포인트가 자동으로 빠집니다. 직접 정하려면 체크를 끄세요.</span></label>')+
+      (p.pointOnly?'<div class="field"><span>보유 포인트</span><div class="inp num" style="display:flex;align-items:center">'+won(bal)+'P</div><input type="hidden" name="use" value="0"></div>':'<label class="field" for="bk-p"><span>포인트 사용 (보유 '+won(bal)+'P'+(PU()>1?' · '+won(PU())+'P 단위':'')+')</span><input class="inp num" id="bk-p" name="use" inputmode="numeric" value="'+(U.bkUse||0)+'"></label><label class="full autouse" for="bk-auto"><input type="checkbox" id="bk-auto" name="auto"'+(U.bkAuto===false?'':' checked')+'> <b>보유 포인트 자동 차감</b> <span class="note">쓸 수 있는 만큼 포인트가 자동으로 빠집니다. 직접 정하려면 체크를 끄세요.</span></label>')+
       ((p.options||[]).length?'<div class="field full"><span>추가 옵션 (1인 기준)</span><div class="optlist">'+(p.options||[]).map(function(o,i){return '<label class="opt"><input type="checkbox" name="opt" value="'+i+'"> <b>'+esc(o.name)+'</b><em>+'+won(o.price)+(p.pointOnly?'P':'원')+'</em></label>'}).join("")+'</div></div>':'')+
       '<div class="full">'+(p.pointOnly?'':'<button class="btn sm" type="button" data-act="use-max">쓸 수 있는 만큼 모두 사용</button>')+'<div class="sum" id="bk-sum"></div><p class="err" id="bk-err"></p>'+
       '<button class="btn pri block" type="submit">예약 신청</button><p class="note" style="margin:10px 0 0;text-align:center">'+(p.pointOnly?'신청하면 포인트가 바로 사용되고, 담당자 확인 후 확정됩니다. 취소하면 포인트가 돌아옵니다.':'신청 후 담당자가 확인 연락을 드립니다. 예약이 확정되면 적립 포인트가 들어갑니다.')+'</p></div></form>'),bookingSum();
@@ -1145,7 +1145,7 @@ function openModal(kind,id){
   if(kind==="review-del")return confirmBox("후기를 삭제할까요?","후기가 완전히 지워집니다. 이미 지급한 포인트는 회수되지 않으니 필요하면 회원 포인트에서 차감하세요.","do-review-del",id,"후기 삭제");
   if(kind==="withdraw"){var wm=me(),wb=wm?balance(wm.id):0;if(!wm)return;
     return modal('<h2>포인트 출금 신청</h2><p class="sub">보유 포인트 <b class="num">'+won(wb)+'P</b> · '+won(RULE.wdMin||0)+'P 이상부터 신청</p><form data-form="withdraw" class="fgrid">'+
-     '<label class="field full" for="wd-amt"><span>출금할 포인트</span><input class="inp num" id="wd-amt" name="amount" inputmode="numeric" placeholder="예: 50000" value="'+(wb>=(RULE.wdMin||0)?wb:"")+'"></label>'+
+     '<label class="field full" for="wd-amt"><span>출금할 포인트'+(PU()>1?' ('+won(PU())+'P 단위)':'')+'</span><input class="inp num" id="wd-amt" name="amount" inputmode="numeric" placeholder="예: 50000" value="'+(function(){var v=Math.floor(wb/PU())*PU();return v>=(RULE.wdMin||0)&&v>0?v:""})()+'"></label>'+
      '<label class="field" for="wd-bank"><span>은행</span><input class="inp" id="wd-bank" name="bank" placeholder="예: 국민은행" list="wd-banks"><datalist id="wd-banks">'+["국민은행","신한은행","우리은행","하나은행","농협은행","기업은행","카카오뱅크","토스뱅크","케이뱅크","새마을금고","우체국","SC제일은행","부산은행","대구은행","신협","수협"].map(function(b){return '<option value="'+b+'">'}).join("")+'</datalist></label>'+
      '<label class="field" for="wd-holder"><span>예금주</span><input class="inp" id="wd-holder" name="holder" value="'+esc(wm.name)+'"></label>'+
      '<label class="field full" for="wd-acct"><span>계좌번호</span><input class="inp num" id="wd-acct" name="account" inputmode="numeric" placeholder="- 없이 숫자만"></label>'+
@@ -1198,7 +1198,8 @@ function openModal(kind,id){
      '<p class="err" id="cc-err"></p><button class="btn pri block" type="submit">저장</button></form>')}
   if(kind==="banner-del")return confirmBox("배너를 삭제할까요?","이 배너가 홈 화면에서 사라집니다. 잠깐 빼두려면 삭제 대신 숨기기를 쓰세요.","do-bn-del",id,"배너 삭제");
 }
-function maxUse(total,bal){var cap=Math.floor(total*RULE.maxRatio);var v=Math.min(bal,cap);return v<RULE.minUse?0:v}
+function PU(){return Math.max(1,+RULE.unit||1)}
+function maxUse(total,bal){var cap=Math.floor(total*RULE.maxRatio);var u=PU(),v=Math.floor(Math.min(bal,cap)/u)*u;return v<RULE.minUse?0:v}
 function hashn(s){var h=2166136261,i;for(i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)}
 function sod(ms){var d=new Date(ms);d.setHours(0,0,0,0);return d.getTime()}
 function dayPrice(p,ms){return p.price}
@@ -1296,7 +1297,7 @@ var forms={
   },
   withdraw:function(f){api("withdraw",{amount:f.elements.amount.value,bank:f.elements.bank.value,holder:f.elements.holder.value,account:f.elements.account.value}).then(function(r){done(r,"wd-err",function(){closeModal();render()})})},
   rules:function(f){
-    var d={};["signup","rate","minUse","maxRatio","review","gapMin","perDay","pending","minLen","wdMin"].forEach(function(k){d[k]=f.elements[k].value});d.wdOn=f.elements.wdOn.checked;
+    var d={};["signup","rate","minUse","maxRatio","review","gapMin","perDay","pending","minLen","wdMin","unit"].forEach(function(k){d[k]=f.elements[k].value});d.wdOn=f.elements.wdOn.checked;
     api("rules-save",d).then(function(r){done(r,"ru-err",render)});
   },
   "member-edit":function(f){api("member-edit",{id:f.dataset.id,name:f.name.value,email:f.email.value,phone:f.phone.value}).then(function(r){done(r,"me-err",function(){closeModal();render()})})},

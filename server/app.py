@@ -10,7 +10,7 @@ PORT = int(os.environ.get("BEST_PORT", "8091"))
 os.makedirs(DATA, exist_ok=True)
 DB = os.path.join(DATA, "best.db")
 
-RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 1.0, "review": 1000, "wdOn": 1, "wdMin": 10000}
+RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 1.0, "review": 1000, "wdOn": 1, "wdMin": 10000, "unit": 10000}
 SESSION_DAYS = 30
 LOCK = threading.RLock()
 UPLOADS = os.path.join(DATA, "uploads")
@@ -341,6 +341,8 @@ def a_booking(me, d, ctx):
     if use > bal: raise Err("보유 포인트(%sP)보다 많이 쓸 수 없습니다." % won(bal))
     if not p.get("pointOnly"):
         if 0 < use < RULE["minUse"]: raise Err("포인트는 %sP 이상부터 쓸 수 있습니다." % won(RULE["minUse"]))
+        un = int(RULE.get("unit") or 1)
+        if un > 1 and use % un: raise Err("포인트는 %sP 단위로 쓸 수 있습니다." % won(un))
         cap = int(total * RULE["maxRatio"])
         if use > cap: raise Err("이 예약에서는 최대 %sP까지 쓸 수 있습니다." % won(cap))
     pay = total - use
@@ -788,6 +790,13 @@ def a_rules_save(me, d, ctx):
             raise Err("최소 출금 포인트를 숫자로 입력해 주세요.")
         if not 0 <= wdmin <= 100000000: raise Err("최소 출금 포인트를 확인해 주세요.")
         RULE.update({"wdMin": wdmin, "wdOn": 1 if d.get("wdOn") else 0})
+    if d.get("unit") is not None:
+        try:
+            un = to_int(d.get("unit"))
+        except Err:
+            raise Err("포인트 단위를 숫자로 입력해 주세요.")
+        if not 1 <= un <= 1000000: raise Err("포인트 단위는 1 이상으로 입력해 주세요.")
+        RULE["unit"] = un
     S["rule"] = dict(RULE)
     S["limits"].update({"gapMin": gap, "perDay": perday, "pending": pend, "minLen": minlen})
     audit("포인트 규칙 변경: 가입 %sP, 적립 %d%%, 최소 사용 %sP, 사용 한도 %d%%, 후기 %sP" % (won(signup), rate, won(minuse), maxr, won(review)))
@@ -896,6 +905,8 @@ def a_withdraw(me, d, ctx):
     if amt <= 0: raise Err("출금할 포인트를 입력해 주세요.")
     if amt < mn: raise Err("%sP 이상부터 출금 신청할 수 있습니다." % won(mn))
     if amt > bal: raise Err("보유 포인트(%sP)보다 많이 신청할 수 없습니다." % won(bal))
+    un = int(RULE.get("unit") or 1)
+    if un > 1 and amt % un: raise Err("출금은 %sP 단위로 신청할 수 있습니다." % won(un))
     if not bank or not holder or len(re.sub(r"\D", "", acct)) < 6: raise Err("은행, 예금주, 계좌번호를 정확히 입력해 주세요.")
     if any(w for w in S["withdrawals"] if w["memberId"] == me["id"] and w["status"] == "pending"):
         raise Err("처리 중인 출금 신청이 있습니다. 처리가 끝난 뒤 다시 신청해 주세요.")
