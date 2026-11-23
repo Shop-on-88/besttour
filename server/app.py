@@ -10,7 +10,7 @@ PORT = int(os.environ.get("BEST_PORT", "8091"))
 os.makedirs(DATA, exist_ok=True)
 DB = os.path.join(DATA, "best.db")
 
-RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 0.3, "review": 1000, "wdOn": 1, "wdMin": 10000}
+RULE = {"signup": 3000, "rate": 0.02, "minUse": 1000, "maxRatio": 1.0, "review": 1000, "wdOn": 1, "wdMin": 10000}
 SESSION_DAYS = 30
 LOCK = threading.RLock()
 UPLOADS = os.path.join(DATA, "uploads")
@@ -53,6 +53,9 @@ def defaults(st):
     st.setdefault("rule", {})
     for k, v in RULE.items():
         st["rule"].setdefault(k, v)
+    if not st.get("fullpay1"):
+        st["rule"]["maxRatio"] = 1.0
+        st["fullpay1"] = True
     RULE.update(st["rule"])
     st.setdefault("withdrawals", [])
     # 카테고리 이름 통일: 배너가 없어진 카테고리를 가리키면 지금 카테고리로 바꿈
@@ -350,6 +353,7 @@ def a_booking(me, d, ctx):
     if use > 0: add_ledger(me["id"], "use", -use, "예약 시 사용", bookingId=b["id"])
     if p.get("pointOnly"):
         return b, "신청이 접수되었습니다. %sP가 사용되었고, 담당자 확인 후 확정됩니다" % won(use)
+    if earn <= 0: return b, "예약 신청이 접수되었습니다. 담당자 확인 후 확정됩니다"
     return b, "예약 신청이 접수되었습니다. 담당자 확인 후 확정되면 %sP가 적립됩니다" % won(earn)
 
 
